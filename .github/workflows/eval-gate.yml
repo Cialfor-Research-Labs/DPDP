@@ -33,7 +33,8 @@ jobs:
             opentelemetry-sdk \
             opentelemetry-instrumentation-fastapi \
             numpy \
-            Jinja2
+            Jinja2 \
+            sentence-transformers
 
       - name: Run DPDPA golden dataset regression suite
         env:
