@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     keycloak_realm: str = "dpdpa"
     minio_endpoint: str = "localhost:9000"
     vault_addr: str = "http://localhost:8200"
+    embedding_provider: str = "local"
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 256
+    openai_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
