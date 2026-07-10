@@ -1,1 +1,1 @@
-"""Object and document storage abstractions."""
+"""Storage module package."""

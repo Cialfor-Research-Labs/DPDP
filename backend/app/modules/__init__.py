@@ -1,1 +1,1 @@
-"""Domain modules."""
+"""Application modules package."""
