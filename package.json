@@ -1,0 +1,26 @@
+{
+  "name": "dpdpa-compliance-engine",
+  "version": "1.0.0",
+  "description": "AI-assisted DPDPA 2023 compliance engine",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "build:frontend": "npm run build --workspace=apps/frontend"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "@react-three/postprocessing": "^3.0.4",
+    "@studio-freight/lenis": "^1.0.42",
+    "@types/three": "^0.185.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.42.2",
+    "lucide-react": "^1.23.0",
+    "tailwind-merge": "^3.6.0",
+    "three": "^0.185.1"
+  }
+}
