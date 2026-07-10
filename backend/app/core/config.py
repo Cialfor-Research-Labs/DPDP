@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     keycloak_realm: str = "dpdpa"
     minio_endpoint: str = "localhost:9000"
     vault_addr: str = "http://localhost:8200"
+    anthropic_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

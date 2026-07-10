@@ -1,1 +1,1 @@
-"""Authentication and authorization integration."""
+"""Auth module package."""

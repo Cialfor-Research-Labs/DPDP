@@ -1,1 +1,1 @@
-"""API routing layer."""
+"""API package."""

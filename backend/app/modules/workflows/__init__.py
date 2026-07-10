@@ -1,1 +1,1 @@
-"""Temporal workflow boundaries."""
+"""Workflows and external AI integrations package."""

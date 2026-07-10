@@ -1,1 +1,1 @@
-"""Embeddings and retrieval abstractions."""
+"""Vector search module package."""

@@ -1,1 +1,1 @@
-"""Cache and pub-sub abstractions."""
+"""Cache module package."""
