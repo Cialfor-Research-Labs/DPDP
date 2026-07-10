@@ -4,13 +4,10 @@ from pathlib import Path
 
 
 PROJECT_NAME = "DPDP"
-BASE_BRANCH = "main"
+BASE_BRANCH = "dev"
 
 
 def run_command(command, error_message):
-    """
-    Execute shell commands safely across Windows, Linux, and macOS.
-    """
 
     try:
         result = subprocess.run(
