@@ -1,0 +1,2029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPDPA Engine — Intelligent Compliance Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────── RESET & DESIGN TOKENS ─────────────────────────── */
+*, *::before, *::after {
+  margin: 0; padding: 0; box-sizing: border-box;
+}
+:root {
+  --bg-absolute: #020206;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-muted: rgba(255, 255, 255, 0.35);
+  --text-dim: rgba(255, 255, 255, 0.15);
+  
+  --accent-purple: #8b5cf6;
+  --accent-purple-glow: rgba(139, 92, 246, 0.3);
+  --accent-cyan: #06b6d4;
+  --accent-cyan-glow: rgba(6, 182, 212, 0.2);
+  
+  --status-green: #10b981;
+  --status-green-dim: rgba(16, 185, 129, 0.08);
+  --status-red: #ef4444;
+  --status-red-dim: rgba(239, 68, 68, 0.08);
+  --status-gold: #f59e0b;
+  --status-gold-dim: rgba(245, 158, 11, 0.08);
+
+  --font-display: 'Syne', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  --border-light: rgba(255, 255, 255, 0.06);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  
+  --glass-surface: rgba(255, 255, 255, 0.02);
+  --glass-blur: blur(24px);
+  --transition-cinematic: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html, body {
+  background: var(--bg-absolute);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─────────────────────────── SCROLLCONTAINER (LENIS) ─────────────────────────── */
+.scroll-container {
+  position: relative;
+  width: 100%;
+}
+
+/* ─────────────────────────── WEBGL LAYERS ─────────────────────────── */
+#canvas-container {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+}
+#webgl-canvas {
+  width: 100%; height: 100%;
+}
+
+/* Custom Cursor Glow */
+.cursor-ambient-glow {
+  position: fixed;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.07) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+}
+
+/* ─────────────────────────── NAVIGATION ─────────────────────────── */
+#nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 72px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 48px;
+  border-bottom: 1px solid var(--border-light);
+  background: rgba(2, 2, 6, 0.4);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  z-index: 100;
+}
+.nav-brand {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--font-display); font-weight: 800; font-size: 1.05rem;
+  letter-spacing: -0.02em; cursor: pointer;
+}
+.brand-icon {
+  position: relative;
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  box-shadow: 0 0 20px var(--accent-purple-glow);
+}
+.nav-links {
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-item {
+  background: none; border: none;
+  color: var(--text-muted);
+  font-family: var(--font-sans); font-size: 0.85rem; font-weight: 500;
+  padding: 8px 16px; border-radius: 8px; cursor: pointer;
+  transition: var(--transition-fast);
+}
+.nav-item:hover, .nav-item.active {
+  color: var(--text-primary);
+  background: var(--glass-surface);
+}
+.nav-cta {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  font-family: var(--font-sans); font-size: 0.8rem; font-weight: 600;
+  padding: 8px 20px; border-radius: 8px; cursor: pointer;
+  transition: var(--transition-fast);
+}
+.nav-cta:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ─────────────────────────── SCENIC LAYOUT ─────────────────────────── */
+.section {
+  position: relative;
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+  padding: 0 8%;
+  overflow: hidden;
+}
+
+/* ─────────────────────────── SCENE 1: CINEMATIC LANDING ─────────────────────────── */
+#scene-landing {
+  justify-content: flex-start;
+  padding-top: 72px;
+}
+.landing-hero {
+  max-width: 820px;
+  position: relative;
+  z-index: 20;
+}
+.hero-tag {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-cyan);
+  letter-spacing: 0.15em; text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.hero-tag span {
+  width: 24px; height: 1px; background: var(--accent-cyan);
+}
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(3.5rem, 8vw, 7.5rem);
+  font-weight: 800; line-height: 0.95;
+  letter-spacing: -0.04em;
+  margin-bottom: 32px;
+}
+.hero-title span {
+  display: block;
+  background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.4) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-title em {
+  font-style: normal;
+  color: var(--accent-purple);
+  text-shadow: 0 0 80px rgba(139, 92, 246, 0.4);
+}
+.hero-desc {
+  font-size: 1.05rem; line-height: 1.8;
+  color: var(--text-secondary);
+  max-width: 480px; margin-bottom: 48px;
+}
+.hero-actions {
+  display: flex; gap: 16px;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-purple), #6d28d9);
+  color: #fff; border: none;
+  font-family: var(--font-sans); font-size: 0.9rem; font-weight: 600;
+  padding: 14px 32px; border-radius: 10px; cursor: pointer;
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.35);
+  display: flex; align-items: center; gap: 8px;
+  transition: var(--transition-fast);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 45px rgba(139, 92, 246, 0.55);
+}
+.btn-secondary {
+  background: var(--glass-surface);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  font-family: var(--font-sans); font-size: 0.9rem; font-weight: 500;
+  padding: 14px 32px; border-radius: 10px; cursor: pointer;
+  backdrop-filter: var(--glass-blur);
+  transition: var(--transition-fast);
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+/* ─────────────────────────── SCENE 2: INTERACTIVE INTERVIEW ─────────────────────────── */
+#scene-interview {
+  justify-content: flex-end;
+  padding-top: 72px;
+}
+.interview-layout {
+  width: 100%; max-width: 1100px;
+  display: grid; grid-template-columns: 280px 1fr;
+  gap: 32px;
+  position: relative; z-index: 20;
+}
+.interview-sidebar {
+  background: rgba(2, 2, 6, 0.7);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  padding: 24px;
+  backdrop-filter: var(--glass-blur);
+  display: flex; flex-direction: column;
+}
+.sidebar-section {
+  margin-bottom: 24px;
+}
+.sidebar-section:last-child {
+  margin-bottom: 0;
+}
+.sidebar-lbl {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.1em; margin-bottom: 12px;
+}
+.sidebar-meta-item {
+  padding: 8px 12px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 6px;
+}
+.meta-item-lbl {
+  font-size: 0.65rem; color: var(--text-muted);
+}
+.meta-item-val {
+  font-size: 0.8rem; color: var(--text-primary); font-weight: 600;
+}
+.prog-list {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.prog-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 8px;
+  font-size: 0.8rem; color: var(--text-muted);
+  transition: var(--transition-fast);
+}
+.prog-item.active {
+  color: var(--text-primary);
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+}
+.prog-item.completed {
+  color: var(--text-secondary);
+}
+.prog-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-dim);
+}
+.prog-item.completed .prog-dot {
+  background: var(--status-green);
+}
+.prog-item.active .prog-dot {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 10px var(--accent-cyan);
+}
+
+.interview-chat-wrap {
+  height: 600px;
+  background: rgba(2, 2, 6, 0.7);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  backdrop-filter: var(--glass-blur);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.chat-header {
+  height: 64px; padding: 0 24px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.chat-title-wrap {
+  display: flex; align-items: center; gap: 12px;
+}
+.chat-title-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15));
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+}
+.chat-title-text {
+  font-size: 0.85rem; font-weight: 600;
+}
+.chat-title-status {
+  font-size: 0.7rem; color: var(--status-green);
+  display: flex; align-items: center; gap: 6px; margin-top: 2px;
+}
+.status-ping-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--status-green);
+  animation: status-glow 2s infinite ease-in-out;
+}
+@keyframes status-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.chat-messages {
+  flex: 1; overflow-y: auto;
+  padding: 24px;
+  display: flex; flex-direction: column; gap: 20px;
+  scroll-behavior: smooth;
+}
+.chat-messages::-webkit-scrollbar {
+  width: 4px;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08); border-radius: 4px;
+}
+.chat-msg {
+  display: flex; gap: 12px;
+  animation: chat-msg-fade 0.4s var(--transition-cinematic) both;
+}
+@keyframes chat-msg-fade {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.chat-msg.user {
+  flex-direction: row-reverse;
+}
+.msg-avatar {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; align-self: flex-end;
+}
+.chat-msg.ai .msg-avatar {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+.msg-content {
+  max-width: 68%;
+}
+.msg-bubble {
+  padding: 12px 16px; border-radius: 12px;
+  font-size: 0.85rem; line-height: 1.6;
+}
+.chat-msg.ai .msg-bubble {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom-left-radius: 4px;
+}
+.chat-msg.user .msg-bubble {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-bottom-right-radius: 4px;
+}
+.msg-citation {
+  margin-top: 8px; padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-light);
+  border-left: 2px solid var(--accent-purple);
+  border-radius: 0 6px 6px 0;
+  font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent-cyan);
+}
+.msg-timestamp {
+  font-size: 0.62rem; color: var(--text-muted);
+  margin-top: 4px; padding: 0 2px;
+}
+.chat-msg.user .msg-timestamp {
+  text-align: right;
+}
+
+/* Verdict Badges */
+.verdict-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 8px; border-radius: 4px;
+  font-family: var(--font-mono); font-size: 0.68rem; font-weight: 500;
+  margin-top: 8px;
+}
+.verdict-pill.ok {
+  background: var(--status-green-dim); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--status-green);
+}
+.verdict-pill.fail {
+  background: var(--status-red-dim); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--status-red);
+}
+.verdict-pill.warn {
+  background: var(--status-gold-dim); border: 1px solid rgba(245, 158, 11, 0.2); color: var(--status-gold);
+}
+.verdict-dot {
+  width: 4px; height: 4px; border-radius: 50%; background: currentColor;
+}
+
+/* Typing */
+.typing-dots {
+  display: flex; gap: 4px; align-items: center; height: 16px;
+}
+.typing-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted);
+  animation: typing-bounce 1.2s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-5px); opacity: 1; }
+}
+
+.chat-input-zone {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-light);
+  background: rgba(2, 2, 6, 0.5);
+}
+.chat-suggestions {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.suggestion-chip {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-family: var(--font-sans); font-size: 0.75rem;
+  padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+.suggestion-chip:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  color: var(--text-primary);
+  background: rgba(139, 92, 246, 0.05);
+}
+.chat-input-row {
+  display: flex; gap: 10px; align-items: flex-end;
+}
+.chat-input-field {
+  flex: 1; background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-medium);
+  border-radius: 8px; padding: 10px 14px;
+  color: var(--text-primary); font-family: var(--font-sans); font-size: 0.85rem;
+  resize: none; outline: none; min-height: 40px; max-height: 100px;
+  transition: var(--transition-fast);
+}
+.chat-input-field::placeholder {
+  color: var(--text-muted);
+}
+.chat-input-field:focus {
+  border-color: rgba(139, 92, 246, 0.4);
+}
+.chat-send-btn {
+  width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0;
+  background: var(--text-primary); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: var(--transition-fast);
+}
+.chat-send-btn svg {
+  stroke: var(--bg-absolute);
+}
+.chat-send-btn:hover {
+  transform: scale(1.05);
+}
+
+/* ─────────────────────────── SCENE 3: REPORT COMMAND CENTER ─────────────────────────── */
+#scene-report {
+  align-items: flex-start;
+  padding-top: 100px;
+  min-height: 120vh;
+}
+.report-layout {
+  width: 100%; max-width: 1120px;
+  margin: 0 auto;
+  position: relative; z-index: 20;
+}
+.report-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 40px; border-bottom: 1px solid var(--border-light);
+  padding-bottom: 24px;
+}
+.report-title-sub {
+  font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+.report-title-main {
+  font-family: var(--font-display); font-weight: 800; font-size: 2.2rem;
+  letter-spacing: -0.03em; margin-top: 4px;
+}
+.report-actions {
+  display: flex; gap: 8px;
+}
+
+/* Cards & Widgets Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px; margin-bottom: 32px;
+}
+.dashboard-widget {
+  background: var(--glass-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 16px; padding: 24px;
+  position: relative; overflow: hidden;
+  transition: var(--transition-cinematic);
+}
+.dashboard-widget:hover {
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+}
+.dashboard-widget::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: var(--widget-accent, var(--border-light));
+}
+.widget-label {
+  font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;
+}
+.widget-value {
+  font-family: var(--font-display); font-size: 2.2rem; font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.widget-subtext {
+  font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;
+}
+.widget-progress-bar {
+  height: 2px; background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px; margin-top: 16px; overflow: hidden;
+}
+.widget-progress-fill {
+  height: 100%; width: 0%;
+  transition: width 1.8s var(--transition-cinematic);
+}
+
+.report-section-title {
+  font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--text-muted); margin-bottom: 20px;
+  display: flex; align-items: center; gap: 12px;
+}
+.report-section-title::after {
+  content: ''; flex: 1; height: 1px; background: var(--border-light);
+}
+
+/* Category Compliance Dials */
+.dials-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 16px; margin-bottom: 32px;
+}
+.dial-container {
+  background: var(--glass-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 16px; padding: 24px 16px;
+  text-align: center; transition: var(--transition-cinematic);
+}
+.dial-container:hover {
+  border-color: var(--border-medium);
+  background: rgba(255, 255, 255, 0.04);
+}
+.dial-svg-wrap {
+  position: relative; width: 88px; height: 88px; margin: 0 auto 12px;
+}
+.dial-svg-wrap svg {
+  transform: rotate(-90deg);
+}
+.dial-bg-circle {
+  fill: none; stroke: rgba(255, 255, 255, 0.04); stroke-width: 5;
+}
+.dial-fill-circle {
+  fill: none; stroke-width: 5; stroke-linecap: round;
+  stroke-dasharray: 201; stroke-dashoffset: 201;
+  transition: stroke-dashoffset 1.6s var(--transition-cinematic);
+}
+.dial-val-text {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 1.05rem; font-weight: 800;
+}
+.dial-lbl-section {
+  font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;
+}
+.dial-lbl-name {
+  font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
+}
+
+/* Gap Register Table */
+.gap-table {
+  background: var(--glass-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 16px; overflow: hidden;
+  margin-bottom: 32px;
+}
+.gap-table-header {
+  display: grid; grid-template-columns: 120px 1fr 160px 140px;
+  padding: 14px 24px; background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-light);
+  font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-muted);
+}
+.gap-table-row {
+  display: grid; grid-template-columns: 120px 1fr 160px 140px;
+  padding: 16px 24px; border-bottom: 1px solid var(--border-light);
+  align-items: center; transition: var(--transition-fast);
+}
+.gap-table-row:hover {
+  background: rgba(255, 255, 255, 0.015);
+}
+.gap-table-row:last-child {
+  border-bottom: none;
+}
+.gap-row-cite {
+  font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent-cyan);
+  font-weight: 500;
+}
+.gap-row-text {
+  font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45;
+  padding-right: 24px;
+}
+.gap-row-actions {
+  display: flex; gap: 6px;
+}
+.btn-micro {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-family: var(--font-sans); font-size: 0.72rem; font-weight: 500;
+  padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  transition: var(--transition-fast);
+}
+.btn-micro:hover {
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+.btn-micro.override:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: var(--status-gold);
+}
+
+/* RACI & ROPA layout */
+.report-twin-section {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 16px; margin-bottom: 32px;
+}
+.twin-widget {
+  background: var(--glass-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 16px; padding: 24px;
+}
+.twin-title {
+  font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+.twin-row {
+  display: grid; padding: 10px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.82rem;
+}
+.twin-row:last-child {
+  border-bottom: none;
+}
+.twin-row.header {
+  font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-muted);
+  padding-bottom: 8px; border-bottom: 1px solid var(--border-medium);
+}
+.ropa-col-grid {
+  grid-template-columns: 1.2fr 1fr 1fr;
+}
+.raci-col-grid {
+  grid-template-columns: 1.5fr 40px 40px 40px 40px;
+}
+.raci-role-cell {
+  text-align: center; font-weight: 700;
+}
+.raci-role-cell.R { color: var(--accent-purple); }
+.raci-role-cell.A { color: var(--accent-cyan); }
+.raci-role-cell.C { color: var(--text-secondary); }
+.raci-role-cell.I { color: var(--text-muted); }
+
+/* Timeline Remediation Roadmap */
+.roadmap-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.roadmap-card {
+  background: var(--glass-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 12px; padding: 20px 24px;
+  display: flex; gap: 20px; align-items: flex-start;
+  border-left: 3px solid var(--roadmap-color, var(--border-medium));
+  transition: var(--transition-cinematic);
+}
+.roadmap-card:hover {
+  background: rgba(255, 255, 255, 0.02);
+  transform: translateX(6px);
+}
+.roadmap-badge {
+  padding: 3px 8px; border-radius: 4px;
+  font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  white-space: nowrap; margin-top: 2px;
+}
+.roadmap-body {
+  flex: 1; min-width: 0;
+}
+.roadmap-cite {
+  font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.roadmap-title {
+  font-size: 0.9rem; font-weight: 600; color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.roadmap-action {
+  font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55;
+}
+
+/* ─────────────────────────── MODAL ─────────────────────────── */
+#modal-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(2, 2, 6, 0.85);
+  backdrop-filter: blur(16px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s var(--transition-cinematic);
+}
+#modal-overlay.open {
+  opacity: 1; pointer-events: all;
+}
+.modal-box {
+  background: #06060c;
+  border: 1px solid var(--border-medium);
+  border-radius: 20px; padding: 36px;
+  max-width: 460px; width: 90%;
+  transform: scale(0.92) translateY(16px);
+  transition: transform 0.4s var(--transition-cinematic);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8), 0 0 80px rgba(139, 92, 246, 0.08);
+}
+#modal-overlay.open .modal-box {
+  transform: none;
+}
+.modal-title {
+  font-family: var(--font-display); font-size: 1.25rem; font-weight: 800;
+  letter-spacing: -0.02em; margin-bottom: 6px;
+}
+.modal-desc {
+  font-size: 0.85rem; color: var(--text-secondary);
+  line-height: 1.5; margin-bottom: 24px;
+}
+.modal-field {
+  margin-bottom: 16px;
+}
+.modal-lbl {
+  font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 6px;
+}
+.modal-select, .modal-input {
+  width: 100%; background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-medium); border-radius: 8px;
+  padding: 12px 16px; color: var(--text-primary);
+  font-family: var(--font-sans); font-size: 0.88rem;
+  outline: none; transition: border-color 0.15s;
+}
+.modal-select:focus, .modal-input:focus {
+  border-color: rgba(139, 92, 246, 0.5);
+}
+.modal-select option {
+  background: #06060c;
+}
+.modal-actions {
+  display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px;
+}
+.btn-modal-cancel {
+  background: none; border: 1px solid var(--border-medium);
+  color: var(--text-secondary); font-family: var(--font-sans);
+  font-size: 0.82rem; font-weight: 500; padding: 10px 20px;
+  border-radius: 8px; cursor: pointer; transition: var(--transition-fast);
+}
+.btn-modal-cancel:hover {
+  color: var(--text-primary); border-color: rgba(255, 255, 255, 0.3);
+}
+.btn-modal-submit {
+  background: linear-gradient(135deg, var(--accent-purple), #6d28d9);
+  border: none; color: #fff;
+  font-family: var(--font-sans); font-size: 0.82rem; font-weight: 600;
+  padding: 10px 20px; border-radius: 8px; cursor: pointer;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  transition: var(--transition-fast);
+}
+.btn-modal-submit:hover {
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.45);
+}
+
+/* ─────────────────────────── TOASTS ─────────────────────────── */
+#toast-wrap {
+  position: fixed; bottom: 24px; right: 24px;
+  z-index: 500; display: flex; flex-direction: column; gap: 8px;
+}
+.toast-msg-box {
+  background: rgba(6, 6, 12, 0.95);
+  border: 1px solid var(--border-medium); border-radius: 10px;
+  padding: 12px 18px; display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  animation: toast-slide-in 0.35s var(--transition-cinematic) both;
+  max-width: 320px;
+}
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: none; }
+}
+.toast-msg-box.slide-out {
+  animation: toast-slide-out 0.25s var(--transition-cinematic) forwards;
+}
+@keyframes toast-slide-out {
+  to { opacity: 0; transform: translateX(20px); }
+}
+.toast-indicator-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+}
+.toast-msg-box.ok .toast-indicator-dot {
+  background: var(--status-green); box-shadow: 0 0 8px var(--status-green);
+}
+.toast-msg-box.er .toast-indicator-dot {
+  background: var(--status-red); box-shadow: 0 0 8px var(--status-red);
+}
+.toast-msg-box.in .toast-indicator-dot {
+  background: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan);
+}
+.toast-msg-text {
+  font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ CINEMATIC WEBGL LAYERS ═══════════════════════ -->
+<div id="canvas-container">
+  <canvas id="webgl-canvas"></canvas>
+</div>
+<div class="cursor-ambient-glow" id="glow-follower"></div>
+
+<!-- ═══════════════════════ PERSISTENT NAV ═══════════════════════ -->
+<nav id="nav">
+  <div class="nav-brand" onclick="scrollToScene('scene-landing')">
+    <div class="brand-icon">⚖</div>
+    <span>DPDPA Engine</span>
+  </div>
+  <div class="nav-links">
+    <button class="nav-item active" id="btn-nav-landing" onclick="scrollToScene('scene-landing')">Home</button>
+    <button class="nav-item" id="btn-nav-interview" onclick="scrollToScene('scene-interview')">Interview</button>
+    <button class="nav-item" id="btn-nav-report" onclick="scrollToScene('scene-report')">Report</button>
+    <button class="nav-cta" onclick="handleSSO()">Sign in</button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════ OVERRIDE MODAL ═══════════════════════ -->
+<div id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">Human Verification Override</div>
+    <div class="modal-desc" id="modal-item-desc">Adjust AI compliance verdict for checkmark.</div>
+    <div class="modal-field">
+      <div class="modal-lbl">Auditor Verdict</div>
+      <select class="modal-select" id="override-verdict-select">
+        <option value="PRESENT">✅ PRESENT — Compliance criteria met</option>
+        <option value="MISSING">❌ MISSING — No valid evidence</option>
+        <option value="INSUFFICIENT_EVIDENCE">⚠️ INSUFFICIENT — Partial evidence, review required</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <div class="modal-lbl">Justification Rationale</div>
+      <input type="text" class="modal-input" id="override-rationale-input" placeholder="Explain the rationale for override…">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeOverrideModal()">Cancel</button>
+      <button class="btn-modal-submit" onclick="submitOverrideModal()">Submit Decision</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-wrap"></div>
+
+<!-- ═══════════════════════ LENIS SCROLL CONTAINER ═══════════════════════ -->
+<div class="scroll-container">
+
+  <!-- SCENE 1: CINEMATIC HERO -->
+  <section class="section" id="scene-landing">
+    <div class="landing-hero">
+      <div class="hero-tag"><span class="tag-line"></span>AI Compliance Core initialized<span class="tag-line2"></span></div>
+      <h1 class="hero-title">
+        <span class="dim">DPDPA Compliance</span>
+        <span class="bright">Reimagined<em>.</em></span>
+      </h1>
+      <p class="hero-desc">Autonomously evaluate policies, trace dynamic legal citations, and manage high-stakes compliance gaps in real-time under DPDPA 2023.</p>
+      <div class="hero-actions">
+        <button class="btn-primary" onclick="scrollToScene('scene-interview')">
+          Begin Audit
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+        <button class="btn-secondary" onclick="scrollToScene('scene-report')">View Command Center</button>
+      </div>
+      <div class="hero-stats" style="margin-top: 80px;">
+        <div class="hstat"><div class="hstat-n">30</div><div class="hstat-l">Obligations</div></div>
+        <div class="hstat"><div class="hstat-n">100%</div><div class="hstat-l">Accuracy</div></div>
+        <div class="hstat"><div class="hstat-n">8</div><div class="hstat-l">Citations</div></div>
+        <div class="hstat"><div class="hstat-n">95%</div><div class="hstat-l">Precision</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCENE 2: INTERACTIVE AI INTERVIEW -->
+  <section class="section" id="scene-interview">
+    <div class="interview-layout">
+      <!-- Session Sidebar -->
+      <div class="interview-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-lbl">Active Session</div>
+          <div class="sidebar-meta-item">
+            <div class="meta-item-lbl">Organization</div>
+            <div class="meta-item-val" id="org-value-display">—</div>
+          </div>
+          <div class="sidebar-meta-item">
+            <div class="meta-item-lbl">Audit ID</div>
+            <div class="meta-item-val">AUD-2025-001</div>
+          </div>
+          <div class="sidebar-meta-item">
+            <div class="meta-item-lbl">Auditor Scope</div>
+            <div class="meta-item-val">Root Authority</div>
+          </div>
+        </div>
+        <div class="sidebar-section" style="flex: 1;">
+          <div class="sidebar-lbl">Obligation Roadmap</div>
+          <div class="prog-list" id="sidebar-prog-list">
+            <div class="prog-item completed" id="step-s5"><span class="prog-dot"></span>§ 5 · Notice</div>
+            <div class="prog-item completed" id="step-s6"><span class="prog-dot"></span>§ 6 · Consent</div>
+            <div class="prog-item active" id="step-s8"><span class="prog-dot"></span>§ 8 · Security</div>
+            <div class="prog-item" id="step-s9"><span class="prog-dot"></span>§ 9 · Minors</div>
+            <div class="prog-item" id="step-s10"><span class="prog-dot"></span>§ 10 · SDF Obligations</div>
+            <div class="prog-item" id="step-s11"><span class="prog-dot"></span>§ 11 · User Rights</div>
+            <div class="prog-item" id="step-s16"><span class="prog-dot"></span>§ 16 · Transborder</div>
+          </div>
+        </div>
+        <div class="sb-score">
+          <div class="sb-score-l">Current Evaluation</div>
+          <div class="sring-row">
+            <div class="sring">
+              <svg viewBox="0 0 70 70" width="60" height="60">
+                <circle class="sr-bg" cx="35" cy="35" r="26"/>
+                <circle class="sr-fill" id="sidebar-score-arc" cx="35" cy="35" r="26"/>
+              </svg>
+              <div class="sr-num" id="sidebar-score-text">—</div>
+            </div>
+            <div>
+              <div class="sring-info-n" id="sidebar-score-large">72</div>
+              <div class="sring-info-s">overall points</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Holographic Chat Window -->
+      <div class="interview-chat-wrap">
+        <div class="chat-header">
+          <div class="chat-title-wrap">
+            <div class="chat-title-icon">⚖</div>
+            <div>
+              <div class="chat-title-text">Compliance Assessor AI</div>
+              <div class="chat-title-status"><span class="status-ping-dot"></span>Active Analysis</div>
+            </div>
+          </div>
+          <div class="chat-actions">
+            <button class="ic-b" onclick="triggerSave()" title="Save audit snapshot">↓</button>
+            <button class="ic-b" onclick="triggerExport()" title="Export checklist data">↑</button>
+          </div>
+        </div>
+
+        <div class="chat-messages" id="chat-messages-container"></div>
+
+        <div class="chat-input-zone">
+          <div class="chat-suggestions" id="chat-quick-replies"></div>
+          <div class="chat-input-row">
+            <textarea class="chat-input-field" id="chat-text-input" placeholder="Type compliance response or details…" rows="1"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitUserMessage()}"></textarea>
+            <button class="chat-send-btn" onclick="submitUserMessage()">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCENE 3: COMPLIANCE COMMAND CENTER (DASHBOARD) -->
+  <section class="section" id="scene-report">
+    <div class="report-layout">
+      <div class="report-header">
+        <div class="dtop-l">
+          <div class="report-title-sub">DPDPA Audit Ledger &bull; Live Intelligence</div>
+          <div class="report-title-main">Command Center</div>
+        </div>
+        <div class="report-actions">
+          <button class="d-btn-o" onclick="resetAuditFlow()">New Audit Session</button>
+          <button class="d-btn-p" onclick="triggerDownloadPDF()">Download Ledger Report</button>
+        </div>
+      </div>
+
+      <!-- Core Metrics Grid -->
+      <div class="dashboard-grid">
+        <div class="dashboard-widget" style="--widget-accent: var(--accent-purple)">
+          <div class="widget-label">Index Score</div>
+          <div class="widget-value">72<span style="font-size: 1.1rem; color: var(--text-muted)">/100</span></div>
+          <div class="widget-subtext">Moderate score &bull; 4 critical gaps</div>
+          <div class="widget-progress-bar"><div class="widget-progress-fill" style="background: var(--accent-purple);" data-width="72%"></div></div>
+        </div>
+        <div class="dashboard-widget" style="--widget-accent: var(--status-green)">
+          <div class="widget-label">Passing Items</div>
+          <div class="widget-value" style="color: var(--status-green)">22<span style="font-size: 1.1rem; color: var(--text-muted)">/30</span></div>
+          <div class="widget-subtext">73.3% compliance criteria met</div>
+          <div class="widget-progress-bar"><div class="widget-progress-fill" style="background: var(--status-green);" data-width="73%"></div></div>
+        </div>
+        <div class="dashboard-widget" style="--widget-accent: var(--status-red)">
+          <div class="widget-label">Identified Gaps</div>
+          <div class="widget-value" style="color: var(--status-red)">2</div>
+          <div class="widget-subtext">High priority remediation required</div>
+          <div class="widget-progress-bar"><div class="widget-progress-fill" style="background: var(--status-red);" data-width="20%"></div></div>
+        </div>
+        <div class="dashboard-widget" style="--widget-accent: var(--status-gold)">
+          <div class="widget-label">Manual Reviews</div>
+          <div class="widget-value" style="color: var(--status-gold)">3</div>
+          <div class="widget-subtext">Awaiting human override audits</div>
+          <div class="widget-progress-bar"><div class="widget-progress-fill" style="background: var(--status-gold);" data-width="30%"></div></div>
+        </div>
+      </div>
+
+      <!-- Section dials -->
+      <div class="report-section-title">Compliance categories index</div>
+      <div class="dials-grid" id="compliance-dials-container"></div>
+
+      <!-- Compliance Gap Ledger -->
+      <div class="report-section-title">compliance gap ledger</div>
+      <div class="gap-table">
+        <div class="gap-table-header">
+          <div>Citation</div>
+          <div>Requirement Detail</div>
+          <div>Assessment State</div>
+          <div>Actions</div>
+        </div>
+        <div id="gap-table-rows-container"></div>
+      </div>
+
+      <!-- derived items twin section -->
+      <div class="report-twin-section">
+        <div class="twin-widget">
+          <div class="twin-title">📁 Derived Record of Processing Activities (ROPA)</div>
+          <div class="twin-row ropa-col-grid header">
+            <div>Data Category</div>
+            <div>Purpose</div>
+            <div>Retention SLA</div>
+          </div>
+          <div class="twin-row ropa-col-grid">
+            <div>Pii (Name, Contact, Address)</div>
+            <div class="cm">User Account Registration</div>
+            <div class="cm">Account deletion + 30 days</div>
+          </div>
+          <div class="twin-row ropa-col-grid">
+            <div>Device IP, Activity Log</div>
+            <div class="cm">Security, Fraud Detection</div>
+            <div class="cm">180 days rolling window</div>
+          </div>
+          <div class="twin-row ropa-col-grid">
+            <div>Payment Meta & Logs</div>
+            <div class="cm">Transaction Audits</div>
+            <div class="cm">7 years (Mandatory RBI)</div>
+          </div>
+        </div>
+
+        <div class="twin-widget">
+          <div class="twin-title">👥 Suggested Responsibility Matrix (RACI)</div>
+          <div class="twin-row raci-col-grid header">
+            <div>Obligation Pillar</div>
+            <div style="text-align: center;">DPO</div>
+            <div style="text-align: center;">Sec</div>
+            <div style="text-align: center;">Legal</div>
+            <div style="text-align: center;">Exec</div>
+          </div>
+          <div class="twin-row raci-col-grid">
+            <div>Notice & Consent Frameworks</div>
+            <div class="raci-role-cell C">C</div>
+            <div class="raci-role-cell I">I</div>
+            <div class="raci-role-cell R">R</div>
+            <div class="raci-role-cell A">A</div>
+          </div>
+          <div class="twin-row raci-col-grid">
+            <div>Obligation of Security (§ 8)</div>
+            <div class="raci-role-cell C">C</div>
+            <div class="raci-role-cell R">R</div>
+            <div class="raci-role-cell I">I</div>
+            <div class="raci-role-cell A">A</div>
+          </div>
+          <div class="twin-row raci-col-grid">
+            <div>Data Processing of Minors (§ 9)</div>
+            <div class="raci-role-cell R">R</div>
+            <div class="raci-role-cell I">I</div>
+            <div class="raci-role-cell C">C</div>
+            <div class="raci-role-cell A">A</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Roadmap -->
+      <div class="report-section-title">remediation roadmap timeline</div>
+      <div class="roadmap-list" id="remediation-roadmap-container"></div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════════ CREATIVE PIPELINE LIBS ═══════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@studio-freight/lenis@1.0.27/dist/lenis.min.js"></script>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   1. LENIS KINETIC SMOOTH SCROLLING
+   ════════════════════════════════════════════════════════════════ */
+const lenis = new Lenis({
+  duration: 1.2,
+  easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+  direction: 'vertical',
+  gestureDirection: 'vertical',
+  smooth: true,
+  mouseMultiplier: 1,
+  smoothTouch: false,
+  touchMultiplier: 2,
+  infinite: false,
+});
+
+function raf(time) {
+  lenis.raf(time);
+  requestAnimationFrame(raf);
+}
+requestAnimationFrame(raf);
+
+// Connect ScrollTrigger to Lenis
+gsap.registerPlugin(ScrollTrigger);
+lenis.on('scroll', ScrollTrigger.update);
+gsap.ticker.add((time) => {
+  lenis.raf(time * 1000);
+});
+
+// Scroll helper
+function scrollToScene(id) {
+  const el = document.getElementById(id);
+  if (el) lenis.scrollTo(el);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   2. THREE.JS IMMERSIVE PROCEDURAL AI CORE SYSTEM
+   ════════════════════════════════════════════════════════════════ */
+(function initWebGLCore() {
+  const container = document.getElementById('canvas-container');
+  const canvas = document.getElementById('webgl-canvas');
+  
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x020206, 1);
+  renderer.setSize(container.clientWidth, container.clientHeight);
+
+  const scene = new THREE.Scene();
+  // Deep space fog
+  scene.fog = new THREE.FogExp2(0x020206, 0.015);
+
+  const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 500);
+  camera.position.set(0, 0, 70);
+
+  // ── Round particle canvas texture generator ──
+  function generateParticleTexture(r, g, b) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`);
+    grad.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.6)`);
+    grad.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, 0.1)`);
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  }
+
+  const whiteTex = generateParticleTexture(255, 255, 255);
+  const purpleTex = generateParticleTexture(139, 92, 246);
+  const cyanTex = generateParticleTexture(6, 182, 212);
+
+  // ── Starfield background ──
+  const starCount = 3500;
+  const starGeo = new THREE.BufferGeometry();
+  const starPos = new Float32Array(starCount * 3);
+  const starSizes = new Float32Array(starCount);
+
+  for (let i = 0; i < starCount; i++) {
+    starPos[i * 3] = (Math.random() - 0.5) * 350;
+    starPos[i * 3 + 1] = (Math.random() - 0.5) * 350;
+    starPos[i * 3 + 2] = (Math.random() - 0.5) * 200 - 30;
+    starSizes[i] = Math.random() * 1.4 + 0.3;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+  starGeo.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+
+  const starMat = new THREE.ShaderMaterial({
+    uniforms: { uTex: { value: whiteTex } },
+    vertexShader: `
+      attribute float size;
+      void main() {
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * (300.0 / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D uTex;
+      void main() {
+        vec4 texCol = texture2D(uTex, gl_PointCoord);
+        if (texCol.a < 0.05) discard;
+        gl_FragColor = vec4(0.8, 0.85, 1.0, 0.7) * texCol.a;
+      }
+    `,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  });
+
+  const starPoints = new THREE.Points(starGeo, starMat);
+  scene.add(starPoints);
+
+  // ── The Evolving Procedural AI Core ──
+  const coreParticles = 18000;
+  const coreGeo = new THREE.BufferGeometry();
+  const corePos = new Float32Array(coreParticles * 3);
+  const origCorePos = new Float32Array(coreParticles * 3);
+  const coreSizes = new Float32Array(coreParticles);
+
+  // Distribute particles into a complex double manifold (Lorenz Attractor shape)
+  let cx = 0.1, cy = 0, cz = 0;
+  const dt = 0.01;
+  const a = 10, b = 28, c = 8 / 3;
+
+  for (let i = 0; i < coreParticles; i++) {
+    // Integrate Lorenz formulas to get beautiful spatial organic structure
+    const dx = a * (cy - cx) * dt;
+    const dy = (cx * (b - cz) - cy) * dt;
+    const dz = (cx * cy - c * cz) * dt;
+    cx += dx; cy += dy; cz += dz;
+
+    // Rescale & position
+    const px = cx * 1.4;
+    const py = cy * 1.4;
+    const pz = (cz - 25) * 1.4;
+
+    corePos[i * 3] = px;
+    corePos[i * 3 + 1] = py;
+    corePos[i * 3 + 2] = pz;
+
+    origCorePos[i * 3] = px;
+    origCorePos[i * 3 + 1] = py;
+    origCorePos[i * 3 + 2] = pz;
+
+    coreSizes[i] = Math.random() * 2.5 + 0.8;
+  }
+
+  coreGeo.setAttribute('position', new THREE.BufferAttribute(corePos, 3));
+  coreGeo.setAttribute('size', new THREE.BufferAttribute(coreSizes, 1));
+
+  const coreMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTex: { value: purpleTex },
+      uTime: { value: 0 },
+      uColor: { value: new THREE.Color(0x8b5cf6) }
+    },
+    vertexShader: `
+      attribute float size;
+      uniform float uTime;
+      varying vec3 vPos;
+      void main() {
+        vPos = position;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * (360.0 / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D uTex;
+      uniform vec3 uColor;
+      varying vec3 vPos;
+      void main() {
+        vec4 texCol = texture2D(uTex, gl_PointCoord);
+        if (texCol.a < 0.05) discard;
+        float distGlow = 1.0 - (length(vPos) / 60.0);
+        gl_FragColor = vec4(uColor, 1.0) * texCol.a * mix(0.5, 1.0, distGlow);
+      }
+    `,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  });
+
+  const corePoints = new THREE.Points(coreGeo, coreMat);
+  scene.add(corePoints);
+
+  // ── External interactive halo rings ──
+  function createOrbitalHalo(rad, numPoints, colorHex, tilt, speed) {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(numPoints * 3);
+    const sizes = new Float32Array(numPoints);
+
+    for (let i = 0; i < numPoints; i++) {
+      const theta = (i / numPoints) * Math.PI * 2;
+      pos[i * 3] = Math.cos(theta) * rad;
+      pos[i * 3 + 1] = 0;
+      pos[i * 3 + 2] = Math.sin(theta) * rad;
+      sizes[i] = Math.random() * 1.5 + 0.6;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uTex: { value: colorHex === 0x06b6d4 ? cyanTex : purpleTex } },
+      vertexShader: `
+        attribute float size;
+        void main() {
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size * (380.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D uTex;
+        void main() {
+          vec4 texCol = texture2D(uTex, gl_PointCoord);
+          if (texCol.a < 0.04) discard;
+          gl_FragColor = vec4(${colorHex === 0x06b6d4 ? '0.02, 0.71, 0.83' : '0.54, 0.36, 0.96'}, 1.0) * texCol.a * 0.7;
+        }
+      `,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+    });
+
+    const points = new THREE.Points(geo, mat);
+    points.rotation.x = tilt;
+    points.userData = { speed };
+    scene.add(points);
+    return points;
+  }
+
+  const halo1 = createOrbitalHalo(24, 350, 0x06b6d4, Math.PI * 0.25, 0.003);
+  const halo2 = createOrbitalHalo(30, 250, 0x8b5cf6, Math.PI * 0.6, -0.004);
+
+  // ── Interactive Mouse Parallax ──
+  let targetX = 0, targetY = 0, currentX = 0, currentY = 0;
+  document.addEventListener('mousemove', (e) => {
+    targetX = (e.clientX / window.innerWidth - 0.5) * 14;
+    targetY = -(e.clientY / window.innerHeight - 0.5) * 14;
+  });
+
+  // ── GSAP Scroll Trigger Camera Camera path ──
+  // Transition camera/positions through landing, chat, and report
+  gsap.timeline({
+    scrollTrigger: {
+      trigger: '#scene-landing',
+      start: 'top top',
+      endTrigger: '#scene-report',
+      end: 'bottom bottom',
+      scrub: 1.2
+    }
+  })
+  .to(camera.position, { z: 45, y: -8, x: -15, ease: 'none' }) // Camera dives closer near chat view
+  .to(corePoints.position, { x: 18, y: -2, z: 0, ease: 'none' }, 0) // Shift core to right behind chat
+  .to(camera.position, { z: 80, y: 15, x: 0, ease: 'none' }) // pull back for the final report view
+  .to(corePoints.position, { x: 0, y: 10, z: -10, ease: 'none' }); // center high core
+
+  // AI Core morphing states mapping (Pulse speed, accent color)
+  window.triggerAiEvaluationMorph = function(isPass) {
+    const originalColor = new THREE.Color(0x8b5cf6);
+    const targetColor = isPass ? new THREE.Color(0x10b981) : new THREE.Color(0xef4444);
+    
+    gsap.timeline()
+      .to(coreMat.uniforms.uColor.value, {
+        r: targetColor.r, g: targetColor.g, b: targetColor.b,
+        duration: 0.4, ease: 'power2.out'
+      })
+      .to(corePoints.scale, { x: 1.25, y: 1.25, z: 1.25, duration: 0.3, yoyo: true, repeat: 1, ease: 'power2.inOut' }, 0)
+      .to(coreMat.uniforms.uColor.value, {
+        r: originalColor.r, g: originalColor.g, b: originalColor.b,
+        duration: 1.5, delay: 0.8, ease: 'power1.inOut'
+      });
+  };
+
+  // ── Animation Loop ──
+  let systemClock = 0;
+  function renderFrame() {
+    requestAnimationFrame(renderFrame);
+    systemClock += 0.005;
+
+    // Apply procedural morph logic inside Three JS coordinates directly
+    const posAttr = coreGeo.attributes.position.array;
+    for (let i = 0; i < coreParticles; i++) {
+      const idx = i * 3;
+      const ox = origCorePos[idx];
+      const oy = origCorePos[idx + 1];
+      const oz = origCorePos[idx + 2];
+      
+      const r = Math.sqrt(ox*ox + oy*oy + oz*oz);
+      const nx = ox / r;
+      const ny = oy / r;
+      const nz = oz / r;
+
+      // Morph offsets applying complex vector maths
+      const morph = Math.sin(systemClock * 2.2 + nx * 5.0 + ny * 2.0) * 1.1 +
+                    Math.cos(systemClock * 1.5 + ny * 4.0 + nz * 3.5) * 0.8;
+      
+      posAttr[idx] = ox + nx * morph;
+      posAttr[idx + 1] = oy + ny * morph;
+      posAttr[idx + 2] = oz + nz * morph;
+    }
+    coreGeo.attributes.position.needsUpdate = true;
+
+    // Rotate halos
+    halo1.rotation.y += halo1.userData.speed;
+    halo2.rotation.y += halo2.userData.speed;
+    halo1.rotation.z += 0.001;
+
+    // Fluid mouse interpolation
+    currentX += (targetX - currentX) * 0.05;
+    currentY += (targetY - currentY) * 0.05;
+    camera.position.x += (currentX - camera.position.x) * 0.02;
+    camera.position.y += (currentY - camera.position.y) * 0.02;
+    camera.lookAt(corePoints.position);
+
+    // Sync lights / canvas size
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (canvas.width !== w || canvas.height !== h) {
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+
+    renderer.render(scene, camera);
+  }
+  renderFrame();
+})();
+
+/* ════════════════════════════════════════════════════════════════
+   3. MOUSE TRACKING GLOW & PARTICLE TRAILS (Canvas 2D)
+   ════════════════════════════════════════════════════════════════ */
+(function initAmbientTrails() {
+  const glow = document.getElementById('glow-follower');
+  const canvas = document.getElementById('trail-c');
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  let mouseX = window.innerWidth / 2;
+  let mouseY = window.innerHeight / 2;
+  let prevMouseX = mouseX;
+  let prevMouseY = mouseY;
+  const particles = [];
+  const colorPalette = ['139, 92, 246', '6, 182, 212', '16, 185, 129', '255, 255, 255'];
+
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    
+    // Smooth GSAP follower for ambient backdrop light glow
+    gsap.to(glow, { x: mouseX, y: mouseY, duration: 0.6, ease: 'power2.out' });
+  });
+
+  function spawnParticles() {
+    const distanceMoved = Math.hypot(mouseX - prevMouseX, mouseY - prevMouseY);
+    if (distanceMoved < 1.5) return;
+    
+    prevMouseX = mouseX;
+    prevMouseY = mouseY;
+
+    for (let i = 0; i < 4; i++) {
+      const targetColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+      particles.push({
+        x: mouseX + (Math.random() - 0.5) * 14,
+        y: mouseY + (Math.random() - 0.5) * 14,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: -(Math.random() * 2.0 + 0.5),
+        life: 1.0,
+        decay: Math.random() * 0.02 + 0.012,
+        radius: Math.random() * 8 + 4,
+        color: targetColor
+      });
+    }
+  }
+
+  function renderTrailFrame() {
+    requestAnimationFrame(renderTrailFrame);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    spawnParticles();
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.04; // Gentle gravity pull down
+      p.life -= p.decay;
+
+      if (p.life <= 0) {
+        particles.splice(i, 1);
+        continue;
+      }
+
+      ctx.save();
+      ctx.globalAlpha = p.life * 0.7;
+      const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
+      grad.addColorStop(0, `rgba(${p.color}, 1)`);
+      grad.addColorStop(0.5, `rgba(${p.color}, 0.3)`);
+      grad.addColorStop(1, `rgba(${p.color}, 0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+  renderTrailFrame();
+})();
+
+/* ════════════════════════════════════════════════════════════════
+   4. NAVIGATION HIGHLIGHT SENSING (ScrollTrigger)
+   ════════════════════════════════════════════════════════════════ */
+(function initNavigationInterlocking() {
+  const sections = ['scene-landing', 'scene-interview', 'scene-report'];
+  const navIds = ['btn-nav-landing', 'btn-nav-interview', 'btn-nav-report'];
+
+  sections.forEach((secId, i) => {
+    ScrollTrigger.create({
+      trigger: '#' + secId,
+      start: 'top 40%',
+      end: 'bottom 40%',
+      onToggle: self => {
+        if (self.isActive) {
+          document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+          const activeBtn = document.getElementById(navIds[i]);
+          if (activeBtn) activeBtn.classList.add('active');
+        }
+      }
+    });
+  });
+})();
+
+/* ════════════════════════════════════════════════════════════════
+   5. CHAT ENGINE & REAL-TIME ASSESSMENT INTERVIEW
+   ════════════════════════════════════════════════════════════════ */
+const INTERVIEW_TREE = [
+  {
+    section: 's8',
+    citation: '§ 8(5) &bull; Safety Obligations',
+    question: 'Provide a breakdown of your technical and administrative safeguards. Are database partitions encrypted? Detail your transit protocols.',
+    quickReplies: [
+      'AES-256 (at rest) + TLS 1.3 (in transit)',
+      'AES-128 configuration, transit not secured',
+      'No formal organizational encryption standard'
+    ],
+    responses: [
+      { verdict: 'PRESENT', css: 'vp-ok', label: 'COMPLIANT', text: 'Implementation details align with § 8(5) secure operational safeguards.' },
+      { verdict: 'MISSING', css: 'vp-fail', label: 'CRITICAL GAP', text: 'Lack of in-transit encryption violates § 8(5) obligation boundary.' },
+      { verdict: 'MISSING', css: 'vp-fail', label: 'NON-COMPLIANT', text: 'Absence of operational encryption standard creates critical risk under § 8.' }
+    ]
+  },
+  {
+    section: 's9',
+    citation: '§ 9(1) &bull; Children\'s Processing Restrictions',
+    question: 'Describe your flow for age-verification boundary triggers and immutable verification logs for minors.',
+    quickReplies: [
+      'Age-gating active, parent verification required',
+      'Age restricted by T&C but no check mechanisms',
+      'Minors not restricted from standard data registration'
+    ],
+    responses: [
+      { verdict: 'PRESENT', css: 'vp-ok', label: 'COMPLIANT', text: 'Explicit parent consent validation meets § 9(1) minor processing rules.' },
+      { verdict: 'MISSING', css: 'vp-warn', label: 'HUMAN REVIEW', text: 'Lack of verification mechanisms requires automated block filters or review.' },
+      { verdict: 'MISSING', css: 'vp-fail', label: 'CRITICAL GAP', text: 'No minor boundary controls violates strict § 9(1) age-processing limits.' }
+    ]
+  },
+  {
+    section: 's10',
+    citation: '§ 10(2)(a) &bull; Data Protection Officer Appointment',
+    question: 'Has your entity appointed an India-domiciled DPO? Detail their reporting relationship to the board.',
+    quickReplies: [
+      'DPO appointed, board access enabled',
+      'We have a CISO, no dedicated DPO',
+      'No dedicated compliance officers appointed'
+    ],
+    responses: [
+      { verdict: 'PRESENT', css: 'vp-ok', label: 'COMPLIANT', text: 'Domiciled DPO appointment with direct board access satisfies § 10(2)(a).' },
+      { verdict: 'MISSING', css: 'vp-fail', label: 'GAP DETECTED', text: 'A security officer/CISO does not satisfy direct legal requirements for a DPO.' },
+      { verdict: 'MISSING', css: 'vp-fail', label: 'CRITICAL GAP', text: 'Absent DPO. Significant exposure to maximum penalty guidelines under § 10.' }
+    ]
+  },
+  {
+    section: 's11',
+    citation: '§ 11 &bull; Principal Rights Management',
+    question: 'Detail user access points for data erasure, accessibility ledger, and consent withdrawal.',
+    quickReplies: [
+      'Self-service compliance dashboard is active',
+      'Manual request queues processed within 30 days',
+      'No structured self-service controls built yet'
+    ],
+    responses: [
+      { verdict: 'PRESENT', css: 'vp-ok', label: 'COMPLIANT', text: 'Real-time dashboard controls meet § 11 accessibility standards.' },
+      { verdict: 'MISSING', css: 'vp-warn', label: 'INSUFFICIENT', text: 'Manual request parsing needs documented SLA tracking to satisfy legal bounds.' },
+      { verdict: 'MISSING', css: 'vp-fail', label: 'GAP DETECTED', text: 'Lack of consent erasure mechanisms directly breaches Principal rights rules.' }
+    ]
+  }
+];
+
+let chatIndex = 0;
+let isWaitingForResponse = false;
+let userSelectedResponseIndex = -1;
+const msgContainer = document.getElementById('chat-messages-container');
+
+function getTimestamp() {
+  const now = new Date();
+  return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+}
+
+function appendChatMessage(sender, htmlContent) {
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'chat-msg ' + (sender === 'ai' ? 'ai' : 'user');
+  const icon = sender === 'ai' ? '⚖' : '👤';
+  msgDiv.innerHTML = `
+    <div class="msg-avatar">${icon}</div>
+    <div class="msg-content">
+      <div class="msg-bubble">${htmlContent}</div>
+      <div class="msg-timestamp">${getTimestamp()}</div>
+    </div>
+  `;
+  msgContainer.appendChild(msgDiv);
+  msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+function showTypingIndicator() {
+  const typDiv = document.createElement('div');
+  typDiv.className = 'chat-msg ai';
+  typDiv.id = 'chat-typing-indicator';
+  typDiv.innerHTML = `
+    <div class="msg-avatar">⚖</div>
+    <div class="msg-content">
+      <div class="msg-bubble">
+        <div class="typing-dots">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  msgContainer.appendChild(typDiv);
+  msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+function removeTypingIndicator() {
+  const ind = document.getElementById('chat-typing-indicator');
+  if (ind) ind.remove();
+}
+
+function setQuickReplies(choices) {
+  const container = document.getElementById('chat-quick-replies');
+  container.innerHTML = '';
+  choices.forEach((text, i) => {
+    const chip = document.createElement('button');
+    chip.className = 'suggestion-chip';
+    chip.textContent = text;
+    chip.onclick = () => {
+      userSelectedResponseIndex = i;
+      document.getElementById('chat-text-input').value = text;
+      submitUserMessage();
+    };
+    container.appendChild(chip);
+  });
+}
+
+function clearQuickReplies() {
+  document.getElementById('chat-quick-replies').innerHTML = '';
+}
+
+function advanceProgressIndicators(idx) {
+  const sections = ['s5', 's6', 's8', 's9', 's10', 's11', 's16'];
+  const prev = document.getElementById('step-' + sections[idx + 1]);
+  const next = document.getElementById('step-' + sections[idx + 2]);
+  if (prev) prev.className = 'prog-item completed';
+  if (next) next.className = 'prog-item active';
+}
+
+function submitUserMessage() {
+  const inputEl = document.getElementById('chat-text-input');
+  const text = inputEl.value.trim();
+  if (!text) return;
+  if (!isWaitingForResponse && chatIndex > 0) {
+    toast('Analysis processing. Awaiting core release.', 'in');
+    return;
+  }
+
+  inputEl.value = '';
+  clearQuickReplies();
+  appendChatMessage('user', text);
+  isWaitingForResponse = false;
+
+  // Step 0: Name initialization
+  if (chatIndex === 0) {
+    document.getElementById('org-value-display').textContent = text;
+    showTypingIndicator();
+    setTimeout(() => {
+      removeTypingIndicator();
+      appendChatMessage('ai', `Firm baseline generated for <strong>${text}</strong>.<br><br>Automatic analysis scans confirm compliance parameters met for § 5 (Notice) & § 6 (Consent Quality).<br><br>Moving directly to active validation on <strong>Section 8 — Safeguards</strong>.`);
+      chatIndex = 1;
+      setTimeout(presentNextStep, 800);
+    }, 1400);
+    return;
+  }
+
+  // Handle active questions
+  const currentStepData = INTERVIEW_TREE[chatIndex - 1];
+  const choiceIdx = userSelectedResponseIndex >= 0 ? userSelectedResponseIndex : 0;
+  userSelectedResponseIndex = -1;
+
+  showTypingIndicator();
+  setTimeout(() => {
+    removeTypingIndicator();
+    const verdictData = currentStepData.responses[Math.min(choiceIdx, currentStepData.responses.length - 1)];
+    const isCompliant = verdictData.verdict === 'PRESENT';
+
+    // Trigger visual changes in the 3D particle core
+    triggerAiEvaluationMorph(isCompliant);
+
+    const resultHtml = `
+      Verification parsed.<br><br>${verdictData.text}
+      <div class="verdict-pill ${verdictData.css}"><span class="verdict-dot"></span>${verdictData.label}</div>
+      <div class="msg-citation">📌 ${currentStepData.citation}</div>
+    `;
+    appendChatMessage('ai', resultHtml);
+    advanceProgressIndicators(chatIndex - 1);
+    chatIndex++;
+
+    if (chatIndex - 1 < INTERVIEW_TREE.length) {
+      setTimeout(presentNextStep, 900);
+    } else {
+      setTimeout(() => {
+        appendChatMessage('ai', `Ledger verification cycle finalized. Core index locked at <strong>72/100</strong>.<br><br>Access full visual breakdown in reports command center.<br><br><button class="btn-primary" style="margin-top: 8px;" onclick="scrollToScene('scene-report')">Open Command Center →</button>`);
+      }, 1000);
+    }
+  }, 1600 + Math.random() * 400);
+}
+
+function presentNextStep() {
+  if (chatIndex - 1 >= INTERVIEW_TREE.length) return;
+  const currentStepData = INTERVIEW_TREE[chatIndex - 1];
+  showTypingIndicator();
+  setTimeout(() => {
+    removeTypingIndicator();
+    appendChatMessage('ai', `<span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted)">${currentStepData.citation}</span><br><br>${currentStepData.question}`);
+    setQuickReplies(currentStepData.quickReplies);
+    isWaitingForResponse = true;
+  }, 800);
+}
+
+// Kick off initial interview state
+setTimeout(() => {
+  appendChatMessage('ai', 'DPDPA 2023 Auditing AI established.<br><br>I will execute dynamic compliance tests over your organizational processing operations.<br><br>State your <strong>enterprise name</strong> to register the workspace.');
+  isWaitingForResponse = true;
+  document.getElementById('chat-text-input').placeholder = 'Enter organization name…';
+}, 600);
+
+
+/* ════════════════════════════════════════════════════════════════
+   6. COMMAND CENTER DASHBOARD DATA BINDING
+   ════════════════════════════════════════════════════════════════ */
+const CATEGORY_DIALS = [
+  { section: 's5', name: 'Notice Details', score: 88, color: '#8b5cf6' },
+  { section: 's6', name: 'Consent Mechanics', score: 92, color: '#06b6d4' },
+  { section: 's8', name: 'Safeguards', score: 75, color: '#10b981' },
+  { section: 's9', name: 'Minors Data', score: 60, color: '#f59e0b' },
+  { section: 's10', name: 'SDF Framework', score: 40, color: '#ef4444' },
+];
+
+const COMPLIANCE_GAPS = [
+  { cite: '§ 5(1)', details: 'Notice fails to list structural DPO or Grievance point options.', verdict: 'MISSING', css: 'chip-fail', label: 'Non-Compliant' },
+  { cite: '§ 8(5)', details: 'Transit validation of endpoint data leaks metadata fields.', verdict: 'INSUFFICIENT', css: 'chip-warn', label: 'Insufficient' },
+  { cite: '§ 9(1)', details: 'No age check mechanisms present at public endpoint registries.', verdict: 'MISSING', css: 'chip-fail', label: 'Non-Compliant' },
+  { cite: '§ 10(2)(a)', details: 'Absence of designated, local-domiciled Data Protection Officer.', verdict: 'MISSING', css: 'chip-fail', label: 'Non-Compliant' },
+  { cite: '§ 11', details: 'Manual request processing queues lack automated erasure verification.', verdict: 'INSUFFICIENT', css: 'chip-warn', label: 'Insufficient' },
+  { cite: '§ 8(6)', details: 'Incident response protocol and notification lines verified.', verdict: 'PRESENT', css: 'chip-ok', label: 'Compliant' },
+  { cite: '§ 16', details: 'Cross-border parameters restricted to authorized server hosts.', verdict: 'PRESENT', css: 'chip-ok', label: 'Compliant' },
+];
+
+const REMEDIATION_ROADMAP = [
+  { severity: 'CRITICAL', color: '#ef4444', background: 'var(--status-red-dim)', cite: '§ 10(2)(a)', title: 'India DPO Designation', action: 'Formally appoint local DPO reporting directly to the Board. Publish structural coordinates on all public digital boundaries immediately.' },
+  { severity: 'HIGH', color: '#f59e0b', background: 'var(--status-gold-dim)', cite: '§ 9(1)', title: 'Minor Age-Verification checks', action: 'Integrate active age detection APIs. Restrict standard registrations below 18 without parental consent check flow.' },
+  { severity: 'MEDIUM', color: '#8b5cf6', background: 'var(--accent-purple-glow)', cite: '§ 5(1)', title: 'DPBI escalation notices', action: 'Update privacy framework notices to highlight Principal right to register complaints with the Data Protection Board of India.' }
+];
+
+function populateDashboardElements() {
+  // 1. Build dials
+  const dialsWrap = document.getElementById('compliance-dials-container');
+  dialsWrap.innerHTML = '';
+  CATEGORY_DIALS.forEach((d, i) => {
+    const circ = 2 * Math.PI * 32;
+    dialsWrap.innerHTML += `
+      <div class="dial-container">
+        <div class="dial-svg-wrap">
+          <svg viewBox="0 0 80 80" width="88" height="88">
+            <circle class="dial-bg-circle" cx="40" cy="40" r="32"/>
+            <circle class="dial-fill-circle" id="dial-ring-fill-${i}" cx="40" cy="40" r="32" stroke="${d.color}" />
+          </svg>
+          <div class="dial-val-text" style="color: ${d.color}">${d.score}%</div>
+        </div>
+        <div class="dial-lbl-section">${d.section}</div>
+        <div class="dial-lbl-name">${d.name}</div>
+      </div>
+    `;
+  });
+
+  // 2. Build gap register rows
+  const gapRowsWrap = document.getElementById('gap-table-rows-container');
+  gapRowsWrap.innerHTML = '';
+  COMPLIANCE_GAPS.forEach((g, i) => {
+    const row = document.createElement('div');
+    row.className = 'gap-table-row';
+    row.style.animationDelay = (i * 0.05) + 's';
+    row.innerHTML = `
+      <div class="gap-row-cite">${g.cite}</div>
+      <div class="gap-row-text">${g.details}</div>
+      <div><span class="chip ${g.css}"><span class="chip-d"></span>${g.label}</span></div>
+      <div class="gap-row-actions">
+        ${g.verdict !== 'PRESENT' ? `<button class="btn-micro override" onclick="openOverrideModal('${g.cite}', '${g.details.replace(/'/g, "\\'")}')">Override</button>` : ''}
+        <button class="btn-micro" onclick="toast('Inspection logs verified for ${g.cite}', 'in')">Inspect</button>
+      </div>
+    `;
+    gapRowsWrap.appendChild(row);
+  });
+
+  // 3. Build roadmap timeline card list
+  const roadmapWrap = document.getElementById('remediation-roadmap-container');
+  roadmapWrap.innerHTML = '';
+  REMEDIATION_ROADMAP.forEach((r, i) => {
+    roadmapWrap.innerHTML += `
+      <div class="roadmap-card" style="--roadmap-color: ${r.color}; animation-delay: ${i * 0.08}s">
+        <div>
+          <span class="roadmap-badge" style="background: ${r.background}; color: ${r.color}; border: 1px solid ${r.color}33">${r.severity}</span>
+        </div>
+        <div class="roadmap-body">
+          <div class="roadmap-cite">${r.cite}</div>
+          <div class="roadmap-title">${r.title}</div>
+          <div class="roadmap-action">${r.action}</div>
+        </div>
+      </div>
+    `;
+  });
+}
+
+// Animate dashboard scores on scroll
+function triggerDashboardAnimations() {
+  populateDashboardElements();
+  setTimeout(() => {
+    // Fill metrics progress bars
+    document.querySelectorAll('.widget-progress-fill').forEach(el => {
+      el.style.width = el.dataset.width;
+    });
+
+    // Animate radial compliance dials
+    CATEGORY_DIALS.forEach((d, i) => {
+      const circ = 2 * Math.PI * 32;
+      const offset = circ * (1 - d.score / 100);
+      const ring = document.getElementById('dial-ring-fill-' + i);
+      if (ring) {
+        ring.style.strokeDasharray = circ;
+        ring.style.strokeDashoffset = offset;
+      }
+    });
+  }, 100);
+}
+
+// Intersection Observer to trigger dashboard animation
+ScrollTrigger.create({
+  trigger: '#scene-report',
+  start: 'top 60%',
+  onEnter: triggerDashboardAnimations
+});
+
+/* ════════════════════════════════════════════════════════════════
+   7. LIVE MANUAL AUDITOR OVERRIDES (MODAL)
+   ════════════════════════════════════════════════════════════════ */
+let activeOverrideTarget = {};
+
+function openOverrideModal(cite, text) {
+  activeOverrideTarget = { cite, text };
+  document.getElementById('modal-item-desc').innerHTML = `Adjusting compliance criteria parameters for citation: <strong>${cite}</strong>`;
+  document.getElementById('override-rationale-input').value = '';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeOverrideModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function submitOverrideModal() {
+  const chosenVerdict = document.getElementById('override-verdict-select').value;
+  const rationale = document.getElementById('override-rationale-input').value.trim();
+  closeOverrideModal();
+
+  toast(`Audit override approved: ${activeOverrideTarget.cite} state modified.`, 'ok');
+  
+  // Re-build gap logs using fresh variables
+  const matchIndex = COMPLIANCE_GAPS.findIndex(g => g.cite === activeOverrideTarget.cite);
+  if (matchIndex >= 0) {
+    if (chosenVerdict === 'PRESENT') {
+      COMPLIANCE_GAPS[matchIndex].verdict = 'PRESENT';
+      COMPLIANCE_GAPS[matchIndex].css = 'chip-ok';
+      COMPLIANCE_GAPS[matchIndex].label = 'Compliant (Audit Verified)';
+    } else if (chosenVerdict === 'MISSING') {
+      COMPLIANCE_GAPS[matchIndex].verdict = 'MISSING';
+      COMPLIANCE_GAPS[matchIndex].css = 'chip-fail';
+      COMPLIANCE_GAPS[matchIndex].label = 'Non-Compliant';
+    } else {
+      COMPLIANCE_GAPS[matchIndex].verdict = 'INSUFFICIENT';
+      COMPLIANCE_GAPS[matchIndex].css = 'chip-warn';
+      COMPLIANCE_GAPS[matchIndex].label = 'Insufficient';
+    }
+    // Re-render dashboard elements
+    triggerDashboardAnimations();
+  }
+}
+
+// Close modal when clicking dark backdrop
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeOverrideModal();
+});
+
+/* ════════════════════════════════════════════════════════════════
+   8. REAL-TIME TOAST DISPATCH SYSTEM
+   ════════════════════════════════════════════════════════════════ */
+function toast(message, type = 'in') {
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className = `toast-msg-box ${type}`;
+  t.innerHTML = `
+    <div class="toast-indicator-dot"></div>
+    <div class="toast-msg-text">${message}</div>
+  `;
+  wrap.appendChild(t);
+
+  setTimeout(() => {
+    t.classList.add('slide-out');
+    setTimeout(() => t.remove(), 300);
+  }, 3000);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   9. NAVIGATION ACTS & INTERACTION SIMULATORS
+   ════════════════════════════════════════════════════════════════ */
+function triggerSave() {
+  toast('Syncing compliance state with database...', 'in');
+  setTimeout(() => toast('State synchronized. Revision version AUD-2025-001a.', 'ok'), 1000);
+}
+
+function triggerExport() {
+  toast('Generating JSON structure metadata logs...', 'in');
+  setTimeout(() => toast('Compliance logs exported to browser storage.', 'ok'), 1000);
+}
+
+function triggerDownloadPDF() {
+  toast('Compiling PDF audit ledger report...', 'in');
+  setTimeout(() => toast('PDF Ledger Report successfully downloaded.', 'ok'), 1800);
+}
+
+function resetAuditFlow() {
+  chatIndex = 0;
+  isWaitingForResponse = false;
+  document.getElementById('chat-messages-container').innerHTML = '';
+  scrollToScene('scene-interview');
+  appendChatMessage('ai', 'Assessment pipeline reset. State established. What is the enterprise name?');
+  isWaitingForResponse = true;
+  toast('Compliance session variables cleared.', 'in');
+}
+
+function handleSSO() {
+  toast('Initiating Keycloak SSO redirection protocol...', 'in');
+  setTimeout(() => toast('Identity verified. Role: Principal Security Auditor.', 'ok'), 1100);
+}
+
+// Initial score sync
+(function initScore() {
+  const circ = 2 * Math.PI * 26;
+  const offset = circ * (1 - 72 / 100);
+  document.getElementById('sidebar-score-arc').style.strokeDashoffset = offset;
+  document.getElementById('sidebar-score-text').textContent = '72';
+})();
+</script>
+</body>
+</html>
