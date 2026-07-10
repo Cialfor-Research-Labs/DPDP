@@ -41,6 +41,16 @@ def run_command(command, error_message):
         sys.exit(1)
 
 
+def git_has_changes():
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return bool(result.stdout.strip())
+
+
 def main():
 
     print("\n========================================")
@@ -106,14 +116,17 @@ def main():
     # CREATE COMMIT
     # -----------------------------------
 
-    print("\nCreating commit...")
+    if git_has_changes():
+        print("\nCreating commit...")
 
-    run_command(
-        ["git", "commit", "-m", commit_message],
-        "Failed to create commit."
-    )
+        run_command(
+            ["git", "commit", "-m", commit_message],
+            "Failed to create commit."
+        )
 
-    print("SUCCESS: Commit created.")
+        print("SUCCESS: Commit created.")
+    else:
+        print("\nNo new changes to commit. Skipping commit step.")
 
     # -----------------------------------
     # PUSH CODE
@@ -122,7 +135,7 @@ def main():
     print("\nPushing code to GitHub...")
 
     run_command(
-        ["git", "push", "origin", current_branch],
+        ["git", "push", "-u", "origin", current_branch],
         "Failed to push code."
     )
 
