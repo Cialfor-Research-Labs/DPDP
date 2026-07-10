@@ -1,1 +1,1 @@
-"""Report generation orchestration."""
+"""Reports module package."""

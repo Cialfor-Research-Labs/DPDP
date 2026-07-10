@@ -1,1 +1,1 @@
-"""Scoring and recommendation logic."""
+"""Scoring module package."""

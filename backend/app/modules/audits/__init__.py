@@ -1,1 +1,1 @@
-"""Audit orchestration module."""
+"""Audits module package."""

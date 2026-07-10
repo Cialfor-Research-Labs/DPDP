@@ -6,4 +6,10 @@ dist/
 .env
 .DS_Store
 venv/
+*.log
+backend/audit_logs/
+backend/reports/
+graphify-out/
+graphify_accuracy_eval.md
+githubpush.py
 
