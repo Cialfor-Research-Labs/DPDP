@@ -1,2 +1,8 @@
-githubpush.py
-jira_branch_sync.py
+__pycache__/
+.pytest_cache/
+.venv/
+node_modules/
+dist/
+.env
+.DS_Store
+venv/
