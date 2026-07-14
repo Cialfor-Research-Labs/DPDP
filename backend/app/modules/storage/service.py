@@ -9,7 +9,7 @@ logger = logging.getLogger("dpdpa.storage")
 
 class VaultClient:
     def __init__(self):
-        self.vault_url = os.environ.get("VAULT_ADDR", "http://localhost:8200")
+        self.vault_url = os.environ.get("VAULT_ADDR", "http://127.0.0.1:8200")
         self.token = os.environ.get("VAULT_TOKEN", "dpdpa-root-token")
         self.key_name = "dpdpa-encryption-key"
         self.is_offline = True

@@ -18,6 +18,7 @@ router = APIRouter()
 
 class InitializeRequest(BaseModel):
     role: str = "Data Fiduciary"
+    domain: str = "general"
     processes_children_data: bool = False
     transfers_data_outside_india: bool = False
     has_data_breach: bool = False
@@ -35,6 +36,7 @@ async def initialize_audit(req: InitializeRequest):
         
         gating_params = {
             "role": req.role,
+            "domain": req.domain.lower(),
             "consent_required": True,
             "processes_children_data": req.processes_children_data,
             "transfers_data_outside_india": req.transfers_data_outside_india,

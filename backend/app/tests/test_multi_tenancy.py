@@ -6,8 +6,8 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from apps.api.auth import KeycloakUser
-from apps.api.db_manager import TenantDataBroker
+from app.modules.auth.service import KeycloakUser
+from app.modules.storage.database import TenantDataBroker
 
 class TestMultiTenancyAndRBAC(unittest.TestCase):
     def setUp(self):

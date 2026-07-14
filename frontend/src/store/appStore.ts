@@ -111,6 +111,17 @@ const DEMO_REPORTS: RecentReport[] = [
   { id: 'r3', title: 'Initial Scan',   score: 28, date: 'Jan 4',   severity: 'critical' },
 ];
 
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export const useAppStore = create<AppStore>((set) => ({
   aiState: 'idle',
   setAIState: (s) => set({ aiState: s }),
@@ -122,7 +133,7 @@ export const useAppStore = create<AppStore>((set) => ({
   sessionsHistory: DEMO_HISTORY,
   addMessage: (m) =>
     set((state) => {
-      const newMsg: Message = { ...m, id: crypto.randomUUID(), timestamp: Date.now() };
+      const newMsg: Message = { ...m, id: generateUUID(), timestamp: Date.now() };
       const activeId = state.activeSessionId || 'demo-1';
       const currentHistory = state.sessionsHistory[activeId] || [];
       const updatedHistory = [...currentHistory, newMsg];
@@ -188,7 +199,7 @@ export const useAppStore = create<AppStore>((set) => ({
     }),
   addChatSession: (label, severity) =>
     set((state) => {
-      const id = crypto.randomUUID();
+      const id = generateUUID();
       const session: ChatSession = {
         id,
         label,

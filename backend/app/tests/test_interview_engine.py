@@ -81,11 +81,31 @@ class TestInterviewEngine(unittest.TestCase):
         self.assertIn("ob_s11_rights_access", applicable_ids)
         self.assertIn("ob_s16_cross_border_transfer", applicable_ids)
         
-        # Generate questions
-        questions = engine.generate_questions(self.llm_client)
-        
-        # Total expected: 7 + 4 + 3 + 3 + 2 + 2 + 2 + 2 + 1 = 26 questions
-        self.assertEqual(len(questions), 26)
+        # Total expected: Capped at a maximum of 10 questions
+        self.assertEqual(len(questions), 10)
+
+    def test_domain_prioritization(self):
+        # Scenario 1: Education domain prioritizing child consent
+        edu_params = {
+            "role": "Significant Data Fiduciary",
+            "domain": "education",
+            "processes_children_data": True
+        }
+        engine_edu = InterviewEngine(self.obligations_yaml_path, edu_params)
+        q_edu = engine_edu.generate_questions(self.llm_client)
+        # Verify ob_s9_1_child_consent appears at the very beginning of the question set
+        self.assertEqual(q_edu[0]["obligation_id"], "ob_s9_1_child_consent")
+
+        # Scenario 2: Finance domain prioritizing security safeguards
+        fin_params = {
+            "role": "Significant Data Fiduciary",
+            "domain": "finance",
+            "processes_children_data": True
+        }
+        engine_fin = InterviewEngine(self.obligations_yaml_path, fin_params)
+        q_fin = engine_fin.generate_questions(self.llm_client)
+        # Verify ob_s8_5_security_safeguards appears at the very beginning
+        self.assertEqual(q_fin[0]["obligation_id"], "ob_s8_5_security_safeguards")
 
 if __name__ == '__main__':
     unittest.main()

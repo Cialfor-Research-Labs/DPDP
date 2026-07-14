@@ -196,7 +196,7 @@ function mapObligationIdToSectionId(obId: string): string {
    MAIN COMPONENT
 ══════════════════════════════════════════════════════════ */
 export default function Interview({ onViewReport, onGoHome }: { onViewReport: () => void; onGoHome?: () => void }) {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:8000/api/v1`;
   const messages      = useAppStore((s) => s.messages);
   const addMessage    = useAppStore((s) => s.addMessage);
   const isTyping      = useAppStore((s) => s.isTyping);
@@ -220,6 +220,17 @@ export default function Interview({ onViewReport, onGoHome }: { onViewReport: ()
   const inputRef   = useRef<HTMLInputElement>(null);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
+
+  // Setup parameters state
+  const [showSetup, setShowSetup] = useState(true);
+  const [setupDomain, setSetupDomain] = useState('general');
+  const [setupRole, setSetupRole] = useState('Data Fiduciary');
+  const [setupChildren, setSetupChildren] = useState(false);
+  const [setupTransfers, setSetupTransfers] = useState(false);
+  const [setupBreach, setSetupBreach] = useState(false);
+  const [setupConsent, setSetupConsent] = useState(false);
+
+  const needsSetup = showSetup && !activeSessionId?.startsWith('demo-') && !sessionId;
 
   const scrollBottom = useCallback(() => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80);
@@ -262,30 +273,34 @@ export default function Interview({ onViewReport, onGoHome }: { onViewReport: ()
     }, delay);
   }, [addMessage, addSession, scrollBottom, sessionSaved, setAIState, setEnergy, setIsTyping, updateSection]);
 
-  // Init first AI message when active session changes to a new empty session
+  // Trigger setup dialog when a new non-demo session is active
   useEffect(() => {
     if (!activeSessionId) return;
-    
-    // Ignore demo sessions
-    if (activeSessionId.startsWith('demo-')) return;
-    
-    // Only initialize if the session is empty
-    if (messages.length > 0) return;
+    if (activeSessionId.startsWith('demo-')) {
+      setShowSetup(false);
+    } else {
+      setShowSetup(true);
+      setSessionId(null);
+    }
+  }, [activeSessionId]);
 
+  function handleStartAudit() {
     setAIState('responding');
     setIsTyping(true);
     setEnergy(0.55);
+    setShowSetup(false);
 
     // REST call to initialize backend engine
     fetch(`${API_BASE}/audits/initialize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        role: "Significant Data Fiduciary",
-        processes_children_data: true,
-        transfers_data_outside_india: true,
-        has_data_breach: true,
-        pre_existing_consent: true
+        role: setupRole,
+        domain: setupDomain,
+        processes_children_data: setupChildren,
+        transfers_data_outside_india: setupTransfers,
+        has_data_breach: setupBreach,
+        pre_existing_consent: setupConsent
       })
     })
       .then(res => {
@@ -300,7 +315,7 @@ export default function Interview({ onViewReport, onGoHome }: { onViewReport: ()
           addMessage({
             role: 'ai',
             content: `DPDPA 2023 Neural Audit session initialized.\n\nFirst Audit Query:\n${data.first_question.question_text}`,
-            citations: ['S.6(1)', 'S.5']
+            citations: [data.first_question.section_citation]
           });
         } else {
           addMessage(INIT_MSG);
@@ -316,7 +331,7 @@ export default function Interview({ onViewReport, onGoHome }: { onViewReport: ()
         setEnergy(0.35);
         scrollBottom();
       });
-  }, [activeSessionId, messages.length, addMessage, setAIState, setIsTyping, setEnergy, scrollBottom]);
+  }
 
   useEffect(scrollBottom, [messages, isTyping, scrollBottom]);
 
@@ -416,6 +431,8 @@ export default function Interview({ onViewReport, onGoHome }: { onViewReport: ()
     setSaved(false);
     setAIState('idle');
     setEnergy(0.3);
+    setSessionId(null);
+    setShowSetup(true);
   }
 
   return (
@@ -687,6 +704,130 @@ export default function Interview({ onViewReport, onGoHome }: { onViewReport: ()
           </p>
         </div>
       </div>
+
+      {needsSetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="w-full max-w-lg rounded-2xl p-6 border flex flex-col gap-5 text-t1 text-left"
+            style={{
+              background: 'rgba(10,9,28,0.96)',
+              borderColor: 'rgba(124,58,237,0.3)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+            }}
+          >
+            <div>
+              <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-light to-fuchsia-light">
+                Configure DPDPA Neural Audit
+              </h3>
+              <p className="text-xs text-t4 mt-1">
+                Select your industry domain and parameters to tailor the compliance questions.
+              </p>
+            </div>
+
+            {/* Domain Dropdown */}
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-t3">Industry Domain</label>
+              <select
+                value={setupDomain}
+                onChange={(e) => setSetupDomain(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-t2 focus:outline-none focus:border-violet-light transition-colors"
+                style={{ cursor: 'none' }}
+              >
+                <option value="general" style={{ background: '#0a091c' }}>General / E-Commerce</option>
+                <option value="finance" style={{ background: '#0a091c' }}>Banking & Finance</option>
+                <option value="education" style={{ background: '#0a091c' }}>Education & EdTech</option>
+                <option value="healthcare" style={{ background: '#0a091c' }}>Healthcare & Biotech</option>
+              </select>
+            </div>
+
+            {/* Organization Role */}
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-t3">Organization Role</label>
+              <select
+                value={setupRole}
+                onChange={(e) => setSetupRole(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-t2 focus:outline-none focus:border-violet-light transition-colors"
+                style={{ cursor: 'none' }}
+              >
+                <option value="Data Fiduciary" style={{ background: '#0a091c' }}>Data Fiduciary</option>
+                <option value="Significant Data Fiduciary" style={{ background: '#0a091c' }}>Significant Data Fiduciary (SDF)</option>
+                <option value="Data Processor" style={{ background: '#0a091c' }}>Data Processor</option>
+              </select>
+            </div>
+
+            {/* Checkbox Parameters */}
+            <div className="flex flex-col gap-3 py-1">
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-t3">Processing Contexts</label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex items-center gap-2.5 text-xs text-t3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={setupChildren}
+                    onChange={(e) => setSetupChildren(e.target.checked)}
+                    className="w-4 h-4 rounded border-white/10 bg-white/5 text-violet-light focus:ring-0 focus:ring-offset-0"
+                    style={{ cursor: 'none' }}
+                  />
+                  Processes Children's Data
+                </label>
+                <label className="flex items-center gap-2.5 text-xs text-t3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={setupTransfers}
+                    onChange={(e) => setSetupTransfers(e.target.checked)}
+                    className="w-4 h-4 rounded border-white/10 bg-white/5 text-violet-light focus:ring-0 focus:ring-offset-0"
+                    style={{ cursor: 'none' }}
+                  />
+                  Transfers Data Outside India
+                </label>
+                <label className="flex items-center gap-2.5 text-xs text-t3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={setupBreach}
+                    onChange={(e) => setSetupBreach(e.target.checked)}
+                    className="w-4 h-4 rounded border-white/10 bg-white/5 text-violet-light focus:ring-0 focus:ring-offset-0"
+                    style={{ cursor: 'none' }}
+                  />
+                  Has Active Data Breach
+                </label>
+                <label className="flex items-center gap-2.5 text-xs text-t3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={setupConsent}
+                    onChange={(e) => setSetupConsent(e.target.checked)}
+                    className="w-4 h-4 rounded border-white/10 bg-white/5 text-violet-light focus:ring-0 focus:ring-offset-0"
+                    style={{ cursor: 'none' }}
+                  />
+                  Requires Pre-commencement Notice
+                </label>
+              </div>
+            </div>
+
+            {/* Launch Button */}
+            <div className="flex gap-3 justify-end mt-2">
+              <button
+                onClick={onGoHome}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold hover:bg-white/5 transition-colors text-t3"
+                style={{ cursor: 'none' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStartAudit}
+                className="px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-violet hover:opacity-90 transition-opacity"
+                style={{
+                  background: 'linear-gradient(135deg, var(--violet) 0%, var(--fuchsia) 100%)',
+                  boxShadow: '0 4px 12px rgba(124,58,237,0.3)',
+                  cursor: 'none'
+                }}
+              >
+                Start Neural Audit
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

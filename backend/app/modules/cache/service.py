@@ -9,7 +9,7 @@ logger = logging.getLogger("dpdpa.cache")
 
 class RedisSemanticCache:
     def __init__(self):
-        self.host = os.environ.get("REDIS_HOST", "localhost")
+        self.host = os.environ.get("REDIS_HOST", "127.0.0.1")
         self.port = int(os.environ.get("REDIS_PORT", 6379))
         self.client = None
         self.is_offline = True
@@ -23,6 +23,7 @@ class RedisSemanticCache:
                 host=self.host,
                 port=self.port,
                 db=0,
+                socket_timeout=2.0,
                 socket_connect_timeout=2.0,
                 decode_responses=True
             )

@@ -35,16 +35,36 @@ class EmbeddingsClient:
                 else:
                     raise RuntimeError(f"Voyage AI returned status {response.status_code}: {response.text}")
             except Exception as e:
-                print(f"Voyage AI Call failed: {e}. Falling back to local SentenceTransformer.")
+                print(f"Voyage AI Call failed: {e}. Falling back to local embedder.")
 
-        if self._local_model is None:
-            from sentence_transformers import SentenceTransformer
-            self._local_model = SentenceTransformer("all-MiniLM-L6-v2")
-            
-        embeddings = self._local_model.encode(texts)
-        if isinstance(embeddings, np.ndarray):
-            return embeddings.tolist()
-        return embeddings
+        try:
+            if self._local_model is None:
+                from sentence_transformers import SentenceTransformer
+                self._local_model = SentenceTransformer("all-MiniLM-L6-v2")
+                
+            embeddings = self._local_model.encode(texts)
+            if isinstance(embeddings, np.ndarray):
+                return embeddings.tolist()
+            return embeddings
+        except Exception as e:
+            print(f"Local SentenceTransformer loading failed: {e}. Falling back to deterministic offline Bag-of-Words embedder.")
+            # Deterministic character-gram/word hashing vectorizer (384 dimensions)
+            mock_embeddings = []
+            for t in texts:
+                vec = [0.0] * 384
+                # Strip punctuation and lowercase
+                clean_text = "".join(c if c.isalnum() or c.isspace() else " " for c in t.lower())
+                words = clean_text.split()
+                for w in words:
+                    import hashlib
+                    idx = int(hashlib.sha256(w.encode('utf-8')).hexdigest(), 16) % 384
+                    vec[idx] += 1.0
+                # L2 Normalize
+                norm = np.linalg.norm(vec)
+                if norm > 0:
+                    vec = (np.array(vec) / norm).tolist()
+                mock_embeddings.append(vec)
+            return mock_embeddings
 
 class InMemoryVectorStore:
     def __init__(self):
