@@ -197,6 +197,10 @@ class RetrievalMapper:
         source_document_uri = artifact.get("source_document_uri")
         source_file_name = artifact.get("source_file_name")
 
+        # Determine current model embedding dimension
+        test_emb = self.embeddings_client.embed(["test_dim"])[0]
+        current_dim = len(test_emb)
+
         for chunk in artifact.get("chunks", []):
             chunk_id = chunk.get("chunk_id")
             text = chunk.get("text", "")
@@ -204,7 +208,7 @@ class RetrievalMapper:
                 continue
 
             embedding = chunk.get("embedding")
-            if not embedding:
+            if not embedding or len(embedding) != current_dim:
                 embedding = self.embeddings_client.embed([text])[0]
 
             self.document_store.add_chunk(

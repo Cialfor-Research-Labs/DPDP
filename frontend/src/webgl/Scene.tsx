@@ -61,10 +61,9 @@ export default function Scene() {
       gl={{
         antialias: false,
         powerPreference: 'high-performance',
-        alpha: false,
+        alpha: true,
       }}
     >
-      <color attach="background" args={['#03030a']} />
 
       <Suspense fallback={null}>
         <AICore />

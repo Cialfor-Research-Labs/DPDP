@@ -1,5 +1,7 @@
 import uuid
 import logging
+import json
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -24,10 +26,102 @@ class InitializeRequest(BaseModel):
     transfers_data_outside_india: bool = False
     has_data_breach: bool = False
     pre_existing_consent: bool = False
+    bypass_onboarding: bool = False
 
 class MessageRequest(BaseModel):
     session_id: str
     answer: str
+
+def parse_onboarding_response(answer: str, llm_client: LLMClient) -> dict:
+    text = answer.lower()
+    
+    # 1. Domain
+    domain = "general"
+    if any(k in text for k in ["finance", "bank", "wealth", "fintech", "loan", "card", "transaction"]):
+        domain = "finance"
+    elif any(k in text for k in ["education", "school", "college", "student", "edtech", "child", "children", "kid"]):
+        domain = "education"
+    elif any(k in text for k in ["health", "medical", "hospital", "biotech", "patient", "clinical", "doctor"]):
+        domain = "healthcare"
+        
+    # 2. Role
+    role = "Data Fiduciary"
+    if any(k in text for k in ["significant", "sdf", "large fiduciary"]):
+        role = "Significant Data Fiduciary"
+    elif any(k in text for k in ["processor", "contractor", "service provider"]):
+        role = "Data Processor"
+        
+    # 3. Flags
+    processes_children_data = False
+    if any(k in text for k in ["child", "children", "kid", "under 18", "minor", "school"]):
+        processes_children_data = True
+        
+    transfers_data_outside_india = False
+    if any(k in text for k in ["outside india", "cross-border", "overseas", "foreign", "transfer"]):
+        transfers_data_outside_india = True
+        
+    has_data_breach = False
+    if any(k in text for k in ["breach", "incident", "leak", "compromised", "hacked"]):
+        has_data_breach = True
+        
+    pre_existing_consent = False
+    if any(k in text for k in ["pre-existing", "legacy", "historical", "prior consent"]):
+        pre_existing_consent = True
+
+    default_result = {
+        "role": role,
+        "domain": domain,
+        "processes_children_data": processes_children_data,
+        "transfers_data_outside_india": transfers_data_outside_india,
+        "has_data_breach": has_data_breach,
+        "pre_existing_consent": pre_existing_consent
+    }
+
+    if not llm_client.api_key:
+        return default_result
+
+    headers = {
+        "x-api-key": llm_client.api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+    }
+    
+    prompt = (
+        f"You are a DPDPA 2023 auditor. Analyze the user's description of their organization and extract "
+        f"compliance configuration parameters in a strict format.\n\n"
+        f"User input: \"{answer}\"\n\n"
+        f"Extract these exact parameters:\n"
+        f"1. domain: strictly one of [finance, education, healthcare, general]\n"
+        f"2. role: strictly one of [Data Fiduciary, Significant Data Fiduciary, Data Processor]\n"
+        f"3. processes_children_data: strictly true or false (default false)\n"
+        f"4. transfers_data_outside_india: strictly true or false (default false)\n"
+        f"5. has_data_breach: strictly true or false (default false)\n"
+        f"6. pre_existing_consent: strictly true or false (default false)\n\n"
+        f"Output formatting: Return only a raw JSON object with these keys. No markdown block, no other text."
+    )
+    
+    payload = {
+        "model": "claude-3-5-sonnet-20240620",
+        "max_tokens": 200,
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    
+    try:
+        response = httpx.post("https://api.anthropic.com/v1/messages", json=payload, headers=headers, timeout=10.0)
+        if response.status_code == 200:
+            parsed = json.loads(response.json()["content"][0]["text"].strip())
+            return {
+                "domain": str(parsed.get("domain", domain)).lower(),
+                "role": str(parsed.get("role", role)),
+                "processes_children_data": bool(parsed.get("processes_children_data", processes_children_data)),
+                "transfers_data_outside_india": bool(parsed.get("transfers_data_outside_india", transfers_data_outside_india)),
+                "has_data_breach": bool(parsed.get("has_data_breach", has_data_breach)),
+                "pre_existing_consent": bool(parsed.get("pre_existing_consent", pre_existing_consent))
+            }
+    except Exception as e:
+        logger.warning(f"Failed to parse onboarding response via Claude: {str(e)}. Using heuristics.")
+        
+    return default_result
 
 @router.post("/initialize")
 async def initialize_audit(req: InitializeRequest):
@@ -45,31 +139,51 @@ async def initialize_audit(req: InitializeRequest):
             "pre_existing_consent": req.pre_existing_consent
         }
 
-        try:
-            engine = InterviewEngine(OBLIGATIONS_YAML_PATH, gating_params)
-            llm_client = LLMClient()
-            questions = engine.generate_questions(llm_client)
-        except Exception as e:
-            logger.error(f"Failed to load obligations engine: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Failed to load obligations engine: {str(e)}")
+        llm_client = LLMClient()
 
-        sessions[session_id] = {
-            "engine": engine,
-            "questions": questions,
-            "current_idx": 0,
-            "eval_results": {},  # obligation_id -> {item_text: status}
-            "gating_params": gating_params,
-            "history": []
-        }
+        if req.bypass_onboarding:
+            try:
+                engine = InterviewEngine(OBLIGATIONS_YAML_PATH, gating_params)
+                questions = engine.generate_questions(llm_client)
+            except Exception as e:
+                logger.error(f"Failed to load obligations engine: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to load obligations engine: {str(e)}")
 
-        first_question = questions[0] if questions else None
+            sessions[session_id] = {
+                "engine": engine,
+                "questions": questions,
+                "current_idx": 0,
+                "eval_results": {},
+                "gating_params": gating_params,
+                "history": [],
+                "is_configured": True
+            }
 
-        return {
-            "session_id": session_id,
-            "first_question": first_question,
-            "total_questions": len(questions),
-            "applicable_obligations": [o["id"] for o in engine.get_applicable_obligations()]
-        }
+            first_question = questions[0] if questions else None
+
+            return {
+                "session_id": session_id,
+                "first_question": first_question,
+                "total_questions": len(questions),
+                "applicable_obligations": [o["id"] for o in engine.get_applicable_obligations()]
+            }
+        else:
+            sessions[session_id] = {
+                "engine": None,
+                "questions": [],
+                "current_idx": 0,
+                "eval_results": {},
+                "gating_params": gating_params,
+                "history": [],
+                "is_configured": False
+            }
+
+            return {
+                "session_id": session_id,
+                "first_question": None,
+                "total_questions": 0,
+                "applicable_obligations": []
+            }
 
 @router.post("/message")
 async def process_answer(req: MessageRequest):
@@ -79,6 +193,45 @@ async def process_answer(req: MessageRequest):
         session = sessions.get(req.session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
+
+        llm_client = LLMClient()
+
+        # Dynamic Onboarding & Tailoring
+        if not session.get("is_configured", True):
+            parsed_params = parse_onboarding_response(req.answer, llm_client)
+            session["gating_params"].update(parsed_params)
+            
+            try:
+                engine = InterviewEngine(OBLIGATIONS_YAML_PATH, session["gating_params"])
+                session["engine"] = engine
+                questions = engine.generate_questions(llm_client)
+                session["questions"] = questions
+                session["is_configured"] = True
+            except Exception as e:
+                logger.error(f"Failed to rebuild engine during onboarding: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to rebuild engine: {str(e)}")
+
+            first_q = questions[0] if questions else None
+            if first_q:
+                ai_response = (
+                    f"Understood! Tailoring a {len(questions)}-question compliance audit for the "
+                    f"**{parsed_params['domain'].title()}** industry, acting as a **{parsed_params['role']}**.\n\n"
+                    f"Let's begin with the first query:\n{first_q['question_text']}"
+                )
+                citation = first_q["section_citation"]
+            else:
+                ai_response = "Onboarding completed. No applicable DPDPA obligations found for these parameters."
+                citation = "General"
+
+            return {
+                "verdict": "PRESENT",
+                "obligation_status": "compliant",
+                "citation": citation,
+                "ai_response": ai_response,
+                "obligation_id": None,
+                "overall_score": 0,
+                "total_questions": len(questions)
+            }
 
         questions = session["questions"]
         current_idx = session["current_idx"]

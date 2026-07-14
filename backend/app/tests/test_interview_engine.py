@@ -81,6 +81,9 @@ class TestInterviewEngine(unittest.TestCase):
         self.assertIn("ob_s11_rights_access", applicable_ids)
         self.assertIn("ob_s16_cross_border_transfer", applicable_ids)
         
+        # Generate questions
+        questions = engine.generate_questions(self.llm_client)
+        
         # Total expected: Capped at a maximum of 10 questions
         self.assertEqual(len(questions), 10)
 
