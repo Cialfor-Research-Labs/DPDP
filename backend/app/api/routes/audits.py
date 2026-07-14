@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 # Core shared references
 from app.core.shared import tracer, sessions, OBLIGATIONS_YAML_PATH, load_raw_obligations, vault_client, semantic_cache
+from app.modules.vector.service import get_retrieval_mapper
 
 # Modules imports
 from app.modules.audits.service import InterviewEngine
@@ -171,6 +172,13 @@ async def process_answer(req: MessageRequest):
             "obligation_id": ob_id
         })
 
+        # Retrieve supporting document chunks from the precomputed embedding index.
+        vector_mapper = get_retrieval_mapper()
+        retrieved_chunks = vector_mapper.search_document_chunks(
+            f"{q_data['question_text']} {req.answer}",
+            top_k=3,
+        )
+
         # Increment question index
         current_idx += 1
         session["current_idx"] = current_idx
@@ -194,5 +202,6 @@ async def process_answer(req: MessageRequest):
             "category_scores": scores.get("category_scores", {}),
             "obligation_status": ob_status,
             "obligation_id": ob_id,
-            "ai_response": final_reply
+            "ai_response": final_reply,
+            "retrieved_chunks": retrieved_chunks,
         }
