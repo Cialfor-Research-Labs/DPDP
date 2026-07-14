@@ -27,6 +27,7 @@ const VERTEX = /* glsl */ `
   uniform float uEnergy;     // 0..1 from store
   uniform float uHover;      // 0..1 mouse proximity
   uniform float uPixelRatio;
+  uniform float uLightTheme;
 
   attribute float aOffset;   // stagger offset per particle (0..1)
   attribute float aSize;     // base size multiplier
@@ -129,12 +130,8 @@ const VERTEX = /* glsl */ `
     pos *= breath;
 
     // ── Energy Pulse (spherical wave) ───────────
-    float distC = length(pos);
-    float pulseFreq = 0.18 + uEnergy * 0.12;  // slower = less irritating
-    float pulsePhase = fract(uTime * pulseFreq + aLayer * 0.5);
-    float pulseR = pulsePhase * 12.0;
-    float pulseFall = max(0., 1. - abs(distC - pulseR) / 1.2);
-    pos += normalize(pos + 0.001) * pulseFall * (0.5 + uEnergy * 0.5);
+    // Disable constant visually fatiguing swelling/pulse waves
+    float pulseFall = 0.0;
 
     // ── Mouse Gravity ───────────────────────────
     // Project mouse NDC onto the z=0 plane in camera space
@@ -156,11 +153,11 @@ const VERTEX = /* glsl */ `
     gl_Position  = projectionMatrix * mvPos;
 
     // ── Color ───────────────────────────────────
-    vec3 violet  = vec3(0.486, 0.231, 0.929);  // #7c3aed
-    vec3 lavender= vec3(0.655, 0.545, 0.980);  // #a78bfa
-    vec3 cyan    = vec3(0.024, 0.714, 0.831);  // #06b6d4
-    vec3 ice     = vec3(0.404, 0.910, 0.976);  // #67e8f9
-    vec3 white   = vec3(1.);
+    vec3 violet  = mix(vec3(0.486, 0.231, 0.929), vec3(0.32, 0.12, 0.68), uLightTheme);
+    vec3 lavender= mix(vec3(0.655, 0.545, 0.980), vec3(0.46, 0.26, 0.82), uLightTheme);
+    vec3 cyan    = mix(vec3(0.024, 0.714, 0.831), vec3(0.03, 0.45, 0.52), uLightTheme);
+    vec3 ice     = mix(vec3(0.404, 0.910, 0.976), vec3(0.12, 0.58, 0.65), uLightTheme);
+    vec3 white   = mix(vec3(1.), vec3(0.15, 0.15, 0.20), uLightTheme);
 
     // Layer: inner=violet/lavender, outer=cyan/ice
     vec3 base = mix(mix(violet, lavender, aOffset), mix(cyan, ice, aOffset), aLayer);
@@ -172,8 +169,8 @@ const VERTEX = /* glsl */ `
     float depthFactor = clamp(1. - (depth - 3.) / 20., 0.2, 1.);
 
     vColor = pulseC * depthFactor;
-    vAlpha = clamp(0.08 + pulseFall * 0.6 + uEnergy * 0.1, 0., 0.7);  // cap to avoid washing text
-    vPulse = pulseFall;
+    vAlpha = mix(clamp(0.08 + pulseFall * 0.6 + uEnergy * 0.1, 0., 0.7), clamp(0.20 + uEnergy * 0.15, 0.1, 0.95), uLightTheme);
+    vPulse = 0.18;
   }
 `;
 
@@ -246,6 +243,7 @@ const PARTICLE_COUNT = 22_000;
 export default function AICore() {
   const pointsRef  = useRef<THREE.Points>(null!);
   const matRef     = useRef<THREE.ShaderMaterial>(null!);
+  const theme = useAppStore((s) => s.theme);
   const aiState    = useAppStore((s) => s.aiState);
   const energyLevel = useAppStore((s) => s.energyLevel);
 
@@ -257,6 +255,7 @@ export default function AICore() {
     uEnergy:     { value: 0.3 },
     uHover:      { value: 0 },
     uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+    uLightTheme: { value: 0 },
   }), []);
 
   // Map AI state → energy level override
@@ -290,6 +289,8 @@ export default function AICore() {
     const target = getTargetEnergy();
     u.uEnergy.value += (target - u.uEnergy.value) * 0.025;
 
+    u.uLightTheme.value = theme === 'light' ? 1.0 : 0.0;
+
     // Slow overall rotation
     if (pointsRef.current) {
       pointsRef.current.rotation.y += delta * 0.015;
@@ -306,7 +307,7 @@ export default function AICore() {
         uniforms={uniforms}
         transparent
         depthWrite={false}
-        blending={THREE.AdditiveBlending}
+        blending={theme === 'light' ? THREE.NormalBlending : THREE.AdditiveBlending}
         side={THREE.DoubleSide}
       />
     </points>

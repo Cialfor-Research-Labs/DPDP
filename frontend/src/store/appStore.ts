@@ -60,12 +60,15 @@ interface AppStore {
   chatSessions: ChatSession[];
   addChatSession: (label: string, severity: ChatSession['severity']) => void;
   updateChatSession: (id: string, data: Partial<ChatSession>) => void;
+  deleteChatSession: (id: string) => void;
   activeSessionId: string | null;
   setActiveSessionId: (id: string | null) => void;
   sessionsHistory: Record<string, Message[]>;
 
   recentReports: RecentReport[];
   resetAudit: () => void;
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
 }
 
 const INITIAL_SECTIONS: ComplianceSection[] = [
@@ -123,6 +126,17 @@ function generateUUID(): string {
 }
 
 export const useAppStore = create<AppStore>((set) => ({
+  theme: 'dark',
+  toggleTheme: () => set((state) => {
+    const next = state.theme === 'dark' ? 'light' : 'dark';
+    if (next === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+    return { theme: next };
+  }),
+
   aiState: 'idle',
   setAIState: (s) => set({ aiState: s }),
 
@@ -221,6 +235,19 @@ export const useAppStore = create<AppStore>((set) => ({
     set((state) => ({
       chatSessions: state.chatSessions.map((s) => s.id === id ? { ...s, ...data } : s)
     })),
+  deleteChatSession: (id) =>
+    set((state) => {
+      const chatSessions = state.chatSessions.filter((s) => s.id !== id);
+      const activeSessionId = state.activeSessionId === id
+        ? (chatSessions[0]?.id || null)
+        : state.activeSessionId;
+      const messages = activeSessionId ? (state.sessionsHistory[activeSessionId] || []) : [];
+      return {
+        chatSessions,
+        activeSessionId,
+        messages
+      };
+    }),
   resetAudit: () =>
     set({
       sections: INITIAL_SECTIONS,

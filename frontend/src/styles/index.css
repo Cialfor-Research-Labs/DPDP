@@ -10,20 +10,20 @@
 
 @layer base {
   :root {
-    /* Core palette */
-    --bg: #03030a;
-    --surface: rgba(255,255,255,0.02);
-    --surface-hover: rgba(255,255,255,0.04);
-    --border: rgba(255,255,255,0.07);
-    --border-active: rgba(255,255,255,0.15);
+    /* Core palette (Sleek eye-pleasing slate-zinc dark mode) */
+    --bg: #0d0e12;
+    --surface: #16171e;
+    --surface-hover: #1e2029;
+    --border: rgba(255,255,255,0.06);
+    --border-active: rgba(255,255,255,0.12);
 
-    /* Text */
-    --t1: #ffffff;
-    --t2: rgba(255,255,255,0.88);
-    --t3: rgba(255,255,255,0.65);
-    --t4: rgba(255,255,255,0.35);
+    /* Text (soft slate shades) */
+    --t1: #f8fafc;
+    --t2: #cbd5e1;
+    --t3: #94a3b8;
+    --t4: #475569;
 
-    /* Accent — system is intentionally restrained */
+    /* Accent — Premium Electric Violet/Purple */
     --violet: #7c3aed;
     --violet-light: #a78bfa;
     --cyan: #06b6d4;
@@ -33,14 +33,39 @@
     --gold: #f59e0b;
 
     /* Glow tokens */
-    --glow-violet: rgba(124,58,237,0.35);
-    --glow-cyan: rgba(6,182,212,0.25);
-    --glow-green: rgba(16,185,129,0.30);
-    --glow-red: rgba(239,68,68,0.30);
-
+    --glow-violet: rgba(124,58,237,0.22);
+    --glow-cyan: rgba(6,182,212,0.15);
+    --glow-green: rgba(16,185,129,0.18);
+    --glow-red: rgba(239,68,68,0.18);
+    
     /* Easing */
     --ease-out-expo: cubic-bezier(0.16,1,0.3,1);
     --ease-in-out-expo: cubic-bezier(0.87,0,0.13,1);
+  }
+
+  html.light {
+    /* Core palette (Clean solid white & light grey) */
+    --bg: #f5f6fa;
+    --surface: #ffffff;
+    --surface-hover: #f9fafb;
+    --border: rgba(9,9,11,0.08);
+    --border-active: rgba(9,9,11,0.18);
+
+    /* Text (slate high contrast) */
+    --t1: #0f172a;
+    --t2: #334155;
+    --t3: #475569;
+    --t4: #94a3b8;
+
+    /* Accent adjustments for light mode contrast */
+    --violet: #6d28d9;
+    --violet-light: #8b5cf6;
+    --cyan: #0891b2;
+    --cyan-light: #06b6d4;
+
+    /* Glow tokens */
+    --glow-violet: rgba(109,40,217,0.14);
+    --glow-cyan: rgba(8,145,178,0.1);
   }
 
   *, *::before, *::after {
