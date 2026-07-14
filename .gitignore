@@ -13,3 +13,4 @@ graphify-out/
 graphify_accuracy_eval.md
 githubpush.py
 
+*.pyc
