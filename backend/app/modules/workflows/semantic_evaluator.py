@@ -31,23 +31,39 @@ class LLMSemanticEvaluator:
         """
         # Lookup in golden dataset if in mock mode
         if self.mock_mode and self.golden_data:
-            normalized_answer = answer.strip().lower()
+            def get_tokens(text: str) -> set:
+                return set("".join(c if c.isalnum() else " " for c in text.lower()).split())
+                
+            ans_tokens = get_tokens(answer)
+            best_match = None
+            max_jaccard = 0.0
+            
             for item in self.golden_data:
-                if item["answer"].strip().lower() == normalized_answer:
-                    # Tiered modeling response
-                    model_used = "claude-sonnet" if obligation_risk == "high" or item["id"] in [4, 17, 30] else "gemma2-9b"
-                    confidence = 0.95 if item["id"] not in [4, 17, 30] else 0.65
+                item_tokens = get_tokens(item["answer"])
+                intersection = ans_tokens.intersection(item_tokens)
+                union = ans_tokens.union(item_tokens)
+                jaccard = len(intersection) / len(union) if union else 0.0
+                
+                if jaccard > max_jaccard and jaccard >= 0.45:
+                    max_jaccard = jaccard
+                    best_match = item
                     
-                    # Escalation simulation:
-                    if confidence < 0.7 and model_used == "gemma2-9b":
-                        model_used = "claude-sonnet"
-                        confidence = 0.90
-                        
-                    return {
-                        "verdict": item["expected_llm_verdict"],
-                        "confidence": confidence,
-                        "model_used": model_used
-                    }
+            if best_match:
+                item = best_match
+                # Tiered modeling response
+                model_used = "claude-sonnet" if obligation_risk == "high" or item["id"] in [4, 17, 30] else "gemma2-9b"
+                confidence = 0.95 if item["id"] not in [4, 17, 30] else 0.65
+                
+                # Escalation simulation:
+                if confidence < 0.7 and model_used == "gemma2-9b":
+                    model_used = "claude-sonnet"
+                    confidence = 0.90
+                    
+                return {
+                    "verdict": item["expected_llm_verdict"],
+                    "confidence": confidence,
+                    "model_used": model_used
+                }
 
         # Real API connection logic
         # Decide starting model based on risk level

@@ -75,27 +75,95 @@ class InterviewEngine:
         return applicable
 
     def generate_questions(self, llm_client: LLMClient) -> List[Dict[str, Any]]:
-        questions = []
+        domain = self.gating_params.get("domain", "general").lower()
+        
+        domain_priorities = {
+            "finance": [
+                "ob_s8_5_security_safeguards",
+                "ob_s8_6_breach_notification",
+                "ob_s11_rights_access",
+                "ob_s6_1_consent_quality",
+                "ob_s5_1_notice_consent",
+                "ob_s16_cross_border_transfer"
+            ],
+            "education": [
+                "ob_s9_1_child_consent",
+                "ob_s5_1_notice_consent",
+                "ob_s6_1_consent_quality",
+                "ob_s11_rights_access",
+                "ob_s8_5_security_safeguards"
+            ],
+            "healthcare": [
+                "ob_s8_5_security_safeguards",
+                "ob_s5_1_notice_consent",
+                "ob_s9_1_child_consent",
+                "ob_s11_rights_access",
+                "ob_s6_1_consent_quality"
+            ],
+            "general": [
+                "ob_s5_1_notice_consent",
+                "ob_s6_1_consent_quality",
+                "ob_s11_rights_access",
+                "ob_s8_5_security_safeguards",
+                "ob_s16_cross_border_transfer"
+            ]
+        }
+        
+        priorities = domain_priorities.get(domain, domain_priorities["general"])
         applicable_obligations = self.get_applicable_obligations()
         
+        # Sort obligations based on priorities
+        def get_priority_key(ob):
+            ob_id = ob.get("id")
+            if ob_id in priorities:
+                return priorities.index(ob_id)
+            return 99
+            
+        applicable_obligations.sort(key=get_priority_key)
+        
+        # Group checklist items by obligation
+        grouped_items = []
         for o in applicable_obligations:
             ob_id = o.get("id")
             citation = o.get("section_citation")
             ob_text = o.get("obligation_text", "")
             checklist = o.get("evidence_checklist", [])
             
+            ob_items = []
             for idx, item_data in enumerate(checklist):
                 item_text = item_data.get("item") if isinstance(item_data, dict) else item_data
-                phrased_q = llm_client.phrase_question(ob_text, item_text)
-                
-                questions.append({
+                ob_items.append({
                     "obligation_id": ob_id,
                     "section_citation": citation,
                     "item_index": idx,
                     "item_text": item_text,
-                    "question_text": phrased_q
+                    "ob_text": ob_text
                 })
+            if ob_items:
+                grouped_items.append(ob_items)
                 
+        # Interleave items round-robin style to ensure compliance diversity
+        interleaved_items = []
+        max_len = max(len(grp) for grp in grouped_items) if grouped_items else 0
+        for i in range(max_len):
+            for grp in grouped_items:
+                if i < len(grp):
+                    interleaved_items.append(grp[i])
+                    
+        # Slice to a maximum of 10 questions
+        final_items = interleaved_items[:10]
+        
+        questions = []
+        for item in final_items:
+            phrased_q = llm_client.phrase_question(item["ob_text"], item["item_text"])
+            questions.append({
+                "obligation_id": item["obligation_id"],
+                "section_citation": item["section_citation"],
+                "item_index": item["item_index"],
+                "item_text": item["item_text"],
+                "question_text": phrased_q
+            })
+            
         return questions
 
 class AuditService:
